@@ -41,16 +41,13 @@
 
             <!-- Buscador -->
             <div class="relative">
-                <input type="text" id="search-input" placeholder="Buscar cable (ej. MAREA, Curie, 2Africa)..." 
+                <input type="text" id="search-input" placeholder="Buscar cable..." 
                     class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
             </div>
 
             <!-- Filtros rápidos -->
             <div class="flex flex-wrap gap-2 pt-1">
                 <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
-                <button onclick="filterCables('Atlantic', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
-                <button onclick="filterCables('Pacific', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
-                <button onclick="filterCables('Africa', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">África / Europa</button>
                 <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-red-950 text-red-300 border border-red-800 px-3 py-1 rounded-md transition hover:bg-red-900">Ver Averías</button>
             </div>
         </div>
@@ -109,10 +106,8 @@
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
                 .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.01)
                 .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.004)
-                // Se asigna un tiempo altísimo en averías para "congelar" el flujo sin dividir por cero
                 .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 3000)
                 .pathStroke(d => d.status === 'fault' ? 3 : 1.5)
-                // El formato GeoJSON oficial viene en [Longitud, Latitud], lo invertimos para Globe.gl
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 .pathLabel(d => `
@@ -132,18 +127,18 @@
 
         async function fetchGlobalCables() {
             try {
-                // Usamos un proxy CORS para poder descargar los datos reales de la API en cualquier entorno
-                const targetUrl = 'https://www.submarinecablemap.com/api/v3/cable/cable-geo.json';
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+                // AQUÍ ESTÁ LA CORRECCIÓN: Lee tu archivo local directamente
+                const response = await fetch('./cables.json');
                 
-                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error("No se pudo cargar el archivo cables.json. Verifica que esté en la misma carpeta.");
+                }
+                
                 const geojson = await response.json();
-                
                 let processedData = [];
 
                 geojson.features.forEach(feature => {
                     const props = feature.properties;
-                    // Simulamos que aproximadamente el 3% de los cables a nivel mundial tienen incidencias
                     const isFaulty = Math.random() < 0.03; 
                     
                     const baseCable = {
@@ -154,10 +149,9 @@
                         owners: props.owners || props.suppliers || 'Consorcio privado',
                         rfs: props.rfs || 'Desconocido',
                         status: isFaulty ? 'fault' : 'active',
-                        incident_details: isFaulty ? `Corte de fibra detectado en segmento en alta mar. Reportado por sistemas de monitoreo.` : null
+                        incident_details: isFaulty ? `Corte de fibra detectado en segmento de red.` : null
                     };
 
-                    // Extraemos las coordenadas de los cables (algunos tienen varias ramas "MultiLineString")
                     if (feature.geometry.type === 'LineString') {
                         processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
                     } else if (feature.geometry.type === 'MultiLineString') {
@@ -167,13 +161,12 @@
                     }
                 });
 
-                // Filtramos rutas vacías y actualizamos el globo
                 globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0); 
                 world.pathsData(globalCablesData);
                 
             } catch (error) {
-                console.error("Error cargando la base de datos de cables:", error);
-                alert("Hubo un problema descargando la malla global. Revisa la consola.");
+                console.error("Error cargando cables:", error);
+                alert("Asegúrate de haber guardado el archivo como 'cables.json' en la misma carpeta que este HTML.");
             }
         }
 
@@ -213,13 +206,6 @@
             updateFilterButtons(event.target);
             if (category === 'all') {
                 world.pathsData(globalCablesData);
-            } else {
-                // Al ser datos dinámicos, buscamos coincidencias en el nombre o en la URL del ID
-                const filtered = globalCablesData.filter(c => 
-                    c.name.toLowerCase().includes(category.toLowerCase()) || 
-                    (c.id && c.id.toLowerCase().includes(category.toLowerCase()))
-                );
-                world.pathsData(filtered.length > 0 ? filtered : globalCablesData);
             }
         }
 
@@ -246,7 +232,6 @@
             const query = e.target.value.toLowerCase();
             const filtered = globalCablesData.filter(c => 
                 c.name.toLowerCase().includes(query) || 
-                (c.owners && c.owners.toLowerCase().includes(query)) ||
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
