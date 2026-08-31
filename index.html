@@ -99,9 +99,13 @@
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
-                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-                .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+                .backgroundColor('#030712')
+                .globeColor('#050505')
+                .showAtmosphere(true)
+                .atmosphereColor('#06b6d4')
+                .atmosphereAltitude(0.15)
+                
+                // Configuración de cables
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
                 .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.01)
@@ -118,13 +122,24 @@
                 `)
                 .onPathClick(d => selectCable(d));
 
+            // Carga de continentes vectoriales corregida usando CDN
+            fetch('//unpkg.com/globe.gl/example/datasets/ne_110m_admin_0_countries.geojson')
+                .then(res => res.json())
+                .then(countries => {
+                    world.polygonsData(countries.features)
+                        .polygonCapColor(() => '#0f172a')
+                        .polygonSideColor(() => '#000000')
+                        .polygonStrokeColor(() => '#1e293b');
+                })
+                .catch(err => console.error("Error cargando la capa base:", err));
+
             world.controls().autoRotate = true;
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
 
             fetchGlobalCables();
         }
-
+        
         async function fetchGlobalCables() {
             try {
                 // Ruta relativa directa para mejor compatibilidad con GitHub Pages
