@@ -42,7 +42,7 @@
     <!-- Interfaz de Usuario (UI) -->
     <div class="relative z-10 p-6 pointer-events-none flex flex-col justify-between h-screen max-w-lg">
         
-        <!-- Cabecera y Buscador -->
+        <!-- Cabecera, Buscador y Filtros -->
         <div class="glass-panel p-5 rounded-xl shadow-2xl pointer-events-auto space-y-4">
             <div>
                 <div class="flex items-center space-x-2">
@@ -54,8 +54,14 @@
 
             <!-- Buscador -->
             <div class="relative">
-                <input type="text" id="search-input" placeholder="Buscar cable..." 
+                <input type="text" id="search-input" placeholder="Buscar cable por nombre..." 
                     class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
+            </div>
+
+            <!-- Filtros rápidos -->
+            <div class="flex flex-wrap gap-2 pt-1">
+                <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
+                <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Ver Averías</button>
             </div>
         </div>
 
@@ -69,14 +75,31 @@
                 <button onclick="closeDetails()" class="text-gray-400 hover:text-white text-lg font-bold px-2">&times;</button>
             </div>
             
+            <!-- Alerta de Avería simulada/real -->
+            <div id="incident-alert" class="hidden mt-3 bg-red-950/50 border border-red-800 text-red-300 p-3 rounded-lg text-sm">
+                <div class="flex items-center space-x-2 font-bold mb-1">
+                    <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <span>ALERTA DE INCIDENCIA</span>
+                </div>
+                <p id="cable-incident-details" class="text-xs"></p>
+            </div>
+
             <div class="grid grid-cols-2 gap-4 mt-4 text-sm border-t border-gray-800 pt-3">
                 <div>
                     <span class="text-gray-400 block text-xs">Estado de Red</span>
-                    <span id="cable-status" class="font-medium text-green-400">🟢 Operativo</span>
+                    <span id="cable-status" class="font-medium text-gray-200">🟢 Operativo</span>
+                </div>
+                <div>
+                    <span class="text-gray-400 block text-xs">Año RFS (Servicio)</span>
+                    <span id="cable-rfs" class="font-medium text-gray-200">Desconocido</span>
                 </div>
                 <div>
                     <span class="text-gray-400 block text-xs">Longitud Estimada</span>
                     <span id="cable-length" class="font-medium text-gray-200">Desconocida</span>
+                </div>
+                <div>
+                    <span class="text-gray-400 block text-xs">Proveedores / Propietarios</span>
+                    <span id="cable-owners" class="font-medium text-gray-200 truncate block">No especificado</span>
                 </div>
             </div>
         </div>
@@ -96,18 +119,28 @@
                 .showAtmosphere(true)
                 .atmosphereColor('#06b6d4')
                 .atmosphereAltitude(0.15)
+                
                 .pathPoints('coords') 
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
+                
                 .pathColor(d => {
                     if (selectedCable) {
                         return d.name === selectedCable.name ? '#fbbf24' : 'rgba(255, 255, 255, 0.15)'; 
                     }
-                    return d.color || '#06b6d4';
+                    return d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4');
                 })
+                
                 .pathDashLength(d => (selectedCable && d.name !== selectedCable.name) ? 0 : 0.05)
                 .pathDashGap(0.02)
                 .pathDashAnimateTime(12000)
+                
+                .pathLabel(d => `
+                    <div style="background: rgba(15,23,42,0.9); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
+                        <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
+                        ${d.status === 'fault' ? '⚠️ Avería reportada' : '✅ Operativo'}
+                    </div>
+                `)
                 .onPathClick(d => {
                     selectedCable = d;
                     world.pathsData(world.pathsData()); 
@@ -123,12 +156,16 @@
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
 
+            world.controls().addEventListener('start', () => {
+                world.controls().autoRotate = false;
+            });
+
             fetchGlobalCables();
         }
         
         async function fetchGlobalCables() {
             try {
-                // Detectar automáticamente si estamos en GitHub Pages para ajustar la ruta relativa del JSON
+                // Compatible tanto para local como para GitHub Pages (/CableMap3D_Web/)
                 const isGitHubPages = window.location.hostname.includes('github.io');
                 const jsonPath = isGitHubPages ? './cable-geo.json' : 'cable-geo.json';
 
@@ -140,10 +177,16 @@
 
                 geojson.features.forEach(feature => {
                     const props = feature.properties || {};
+                    const isFaulty = Math.random() < 0.02; // Pequeña simulación de incidencia opcional
+                    
                     const baseCable = {
                         name: props.name || 'Cable Desconocido',
                         color: props.color || '#06b6d4',
-                        length: props.length ? `${props.length} km` : 'No especificada'
+                        length: props.length ? `${props.length} km` : 'No especificada',
+                        owners: props.owners || props.suppliers || 'Consorcio privado',
+                        rfs: props.rfs || 'Desconocido',
+                        status: isFaulty ? 'fault' : 'active',
+                        incident_details: isFaulty ? 'Corte de fibra detectado en segmento secundario.' : null
                     };
 
                     if (feature.geometry) {
@@ -157,23 +200,61 @@
                     }
                 });
 
-                globalCablesData = processedData;
+                globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0);
                 world.pathsData(globalCablesData);
-                console.log(`Cargados ${globalCablesData.length} tramos de cables correctamente.`);
+                console.log(`Cargados ${globalCablesData.length} segmentos de cables correctamente.`);
                 
             } catch (error) {
-                console.error("❌ Error al cargar el JSON de cables:", error);
+                console.error("❌ Error al cargar el GeoJSON de cables:", error);
             }
         }
 
         function selectCable(cable) {
             document.getElementById('cable-name').innerText = cable.name;
+            document.getElementById('cable-status').innerText = cable.status === 'fault' ? '🔴 Fuera de servicio' : '🟢 Operativo';
+            document.getElementById('cable-rfs').innerText = cable.rfs;
             document.getElementById('cable-length').innerText = cable.length;
+            document.getElementById('cable-owners').innerText = cable.owners;
+
+            const alertBox = document.getElementById('incident-alert');
+            if (cable.status === 'fault') {
+                alertBox.classList.remove('hidden');
+                document.getElementById('cable-incident-details').innerText = cable.incident_details;
+            } else {
+                alertBox.classList.add('hidden');
+            }
+
             document.getElementById('detail-panel').classList.remove('translate-y-96', 'opacity-0');
         }
 
         function closeDetails() {
             document.getElementById('detail-panel').classList.add('translate-y-96', 'opacity-0');
+        }
+
+        function filterCables(category, event) {
+            updateFilterButtons(event.target);
+            if (category === 'all') {
+                world.pathsData(globalCablesData);
+            }
+        }
+
+        function filterIncidents(event) {
+            updateFilterButtons(event.target);
+            const faults = globalCablesData.filter(c => c.status === 'fault');
+            world.pathsData(faults);
+        }
+
+        function updateFilterButtons(activeButton) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-cyan-950', 'text-cyan-300', 'border-cyan-800', 'bg-red-950', 'text-red-300', 'border-red-800');
+                btn.classList.add('bg-gray-900', 'text-gray-300', 'border-gray-700');
+            });
+            activeButton.classList.remove('bg-gray-900', 'text-gray-300', 'border-gray-700');
+            if (activeButton.innerText.includes('Averías')) {
+                activeButton.classList.add('bg-red-950', 'text-red-300', 'border-red-800');
+            } else {
+                activeButton.classList.add('bg-cyan-950', 'text-cyan-300', 'border-cyan-800');
+            }
         }
 
         document.getElementById('search-input').addEventListener('input', (e) => {
