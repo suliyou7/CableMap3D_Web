@@ -127,11 +127,11 @@
 
         async function fetchGlobalCables() {
             try {
-                // MODIFICADO AQUÍ: Busca "cable-geo.json" coincidiendo con tu carpeta
-                const response = await fetch('./cable-geo.json');
+                // Ruta relativa directa para mejor compatibilidad con GitHub Pages
+                const response = await fetch('cable-geo.json');
                 
                 if (!response.ok) {
-                    throw new Error("No se pudo cargar el archivo local.");
+                    throw new Error(`Error HTTP: ${response.status} - El archivo no se encuentra en el servidor.`);
                 }
                 
                 const geojson = await response.json();
@@ -166,7 +166,7 @@
                 
             } catch (error) {
                 console.error("Error cargando cables:", error);
-                alert("Asegúrate de ejecutar esto en un servidor local o en GitHub Pages. Abrir el archivo directamente con doble clic puede bloquear la carga del JSON por seguridad del navegador.");
+                alert(`Error: No se pudo cargar el archivo JSON.\n\nDetalle: ${error.message}\n\nAsegúrate de que 'cable-geo.json' está subido a GitHub y que GitHub Pages ha terminado de actualizar la web.`);
             }
         }
 
