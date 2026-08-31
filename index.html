@@ -95,7 +95,7 @@
         let world;
         let globalCablesData = []; 
 
-    function initGlobe() {
+function initGlobe() {
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
@@ -120,14 +120,14 @@
                 `)
                 .onPathClick(d => selectCable(d));
 
-            // Ruta sólida directa al repositorio del autor para los continentes
-            fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+            // Carga de continentes en ALTA resolución (incluye islas)
+            fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
                 .then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
                     return res.json();
                 })
                 .then(countries => {
-                    console.log("Continentes cargados correctamente.");
+                    console.log("Continentes de alta resolución cargados.");
                     world.polygonsData(countries.features)
                         .polygonCapColor(() => '#0f172a')
                         .polygonSideColor(() => '#000000')
@@ -139,7 +139,7 @@
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
 
-            // Detecta el inicio de la interacción (ratón o táctil) y detiene la rotación
+            // Detecta el inicio de la interacción y detiene la rotación
             world.controls().addEventListener('start', () => {
                 world.controls().autoRotate = false;
             });
