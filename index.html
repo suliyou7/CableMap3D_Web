@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Global Submarine Cable Map | 3D Visualizer</title>
-    <!-- Tailwind CSS para el diseño de la interfaz -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js y Globe.gl -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.js"></script>
+    <!-- Three.js v152 y Globe.gl compatibles -->
+    <script src="https://unpkg.com/three@0.152.0/build/three.js"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
@@ -17,7 +17,6 @@
             backdrop-filter: blur(12px);
             border: 1px solid rgba(51, 65, 85, 0.5);
         }
-        /* Scrollbar personalizado para los paneles */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -28,7 +27,7 @@
     <!-- Contenedor del Globo 3D -->
     <div id="globe-container"></div>
 
-    <!-- Interfaz de Usuario (UI) - Estilo NOC / Hurricane Electric -->
+    <!-- Interfaz de Usuario (UI) -->
     <div class="relative z-10 p-6 pointer-events-none flex flex-col justify-between h-screen max-w-lg">
         
         <!-- Cabecera y Buscador -->
@@ -90,7 +89,6 @@
 
     <!-- Script Principal de Lógica y Datos -->
     <script>
-        // Base de Datos Ampliada de Cables Submarinos Reales (Coordenadas y Metadatos)
         const submarineCables = [
             {
                 name: "MAREA",
@@ -99,11 +97,11 @@
                 rfs: "2017",
                 length: "6,600 km",
                 landings: "Virginia Beach (EEUU) - Sopelana (España)",
-                color: "#06b6d4", // Cyan brillante
+                color: "#06b6d4",
                 coords: [
-                    [36.8529, -75.9780], // Virginia Beach
-                    [39.0, -40.0],       // Punto medio Atlántico
-                    [43.3833, -2.9833]   // Sopelana, España
+                    [36.8529, -75.9780],
+                    [39.0, -40.0],
+                    [43.3833, -2.9833]
                 ]
             },
             {
@@ -113,29 +111,29 @@
                 rfs: "2019",
                 length: "10,500 km",
                 landings: "Los Ángeles (EEUU) - Valparaíso (Chile)",
-                color: "#3b82f6", // Azul
+                color: "#3b82f6",
                 coords: [
-                    [33.7420, -118.25], // Los Ángeles
+                    [33.7420, -118.25],
                     [10.0, -110.0],
                     [-15.0, -90.0],
-                    [-33.0472, -71.6127] // Valparaíso
+                    [-33.0472, -71.6127]
                 ]
             },
             {
                 name: "2Africa",
                 region: "África / Europa / Medio Oriente",
-                owners: "Meta, Vodafone, Orange, MTN, Telecom Egypt, etc.",
+                owners: "Meta, Vodafone, Orange, MTN, Telecom Egypt",
                 rfs: "2024 (En despliegue)",
                 length: "45,000 km",
-                landings: "Circunda todo el continente africano, Europa y Medio Oriente",
-                color: "#10b981", // Esmeralda
+                landings: "Circunda África, Europa y Medio Oriente",
+                color: "#10b981",
                 coords: [
-                    [51.5074, -0.1278],  // Londres
-                    [36.7538, 3.0588],   // Argel
-                    [31.2001, 29.9187],  // Alejandría
-                    [-1.2921, 36.8219],  // Nairobi/Mombasa
-                    [-25.9692, 32.5732], // Maputo
-                    [30.0444, 31.2357]   // Suez
+                    [51.5074, -0.1278],
+                    [36.7538, 3.0588],
+                    [31.2001, 29.9187],
+                    [-1.2921, 36.8219],
+                    [-25.9692, 32.5732],
+                    [30.0444, 31.2357]
                 ]
             },
             {
@@ -145,11 +143,11 @@
                 rfs: "2021",
                 length: "6,000 km",
                 landings: "Sines (Portugal) - Fortaleza (Brasil)",
-                color: "#8b5cf6", // Violeta
+                color: "#8b5cf6",
                 coords: [
-                    [37.9556, -8.8639],  // Sines
+                    [37.9556, -8.8639],
                     [15.0, -30.0],
-                    [-3.7172, -38.5433]  // Fortaleza
+                    [-3.7172, -38.5433]
                 ]
             },
             {
@@ -159,11 +157,11 @@
                 rfs: "2020",
                 length: "6,600 km",
                 landings: "Virginia Beach (EEUU) - Saint-Hilaire-de-Riez (Francia)",
-                color: "#ec4899", // Rosa
+                color: "#ec4899",
                 coords: [
                     [36.8529, -75.9780],
                     [42.0, -35.0],
-                    [46.7667, -1.9500]   // Francia
+                    [46.7667, -1.9500]
                 ]
             },
             {
@@ -173,12 +171,12 @@
                 rfs: "2017",
                 length: "10,556 km",
                 landings: "Boca Raton (EEUU) - Fortaleza y Santos (Brasil)",
-                color: "#f59e0b", // Ámbar
+                color: "#f59e0b",
                 coords: [
-                    [26.3683, -80.0898], // Boca Ratón
+                    [26.3683, -80.0898],
                     [5.0, -45.0],
-                    [-3.7172, -38.5433], // Fortaleza
-                    [-23.9618, -46.3322] // Santos
+                    [-3.7172, -38.5433],
+                    [-23.9618, -46.3322]
                 ]
             }
         ];
@@ -188,31 +186,24 @@
         function initGlobe() {
             const container = document.getElementById('globe-container');
             
-            // Instanciar Globe.gl con estética estilo Hurricane Electric (Fondo oscuro / Tierra nocturna)
-            world = Globe()
-                (container)
+            world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
                 .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
-                // Configuración de Líneas (Cables Submarinos)
                 .pathsData(submarineCables)
                 .pathColor(d => d.color)
                 .pathDashLength(0.01)
                 .pathDashGap(0.004)
                 .pathDashAnimateSpeed(12)
-                .pathStroke(2.5)
+                .pathStroke(2)
                 .pathPointLat(d => d[0])
                 .pathPointLng(d => d[1])
-                .pathLabel(d => `<div style="background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-size: 12px; border: 1px solid #334155;"><b>${d.name}</b> (${d.region})</div>`)
+                .pathLabel(d => `<div style="background: rgba(0,0,0,0.85); padding: 6px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #334155; color: #fff;"><b>${d.name}</b> (${d.region})</div>`)
                 .onPathClick(d => selectCable(d));
 
-            // Ajustes de iluminación y atmósfera 3D
             world.controls().autoRotate = true;
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
-
-            // Cargar datos iniciales en el mapa
-            updateGlobePaths(submarineCables);
         }
 
         function updateGlobePaths(data) {
@@ -220,7 +211,6 @@
         }
 
         function selectCable(cable) {
-            // Mostrar panel inferior con detalles
             const panel = document.getElementById('detail-panel');
             document.getElementById('cable-name').innerText = cable.name;
             document.getElementById('cable-region').innerText = cable.region;
@@ -231,7 +221,6 @@
 
             panel.classList.remove('translate-y-96', 'opacity-0');
 
-            // Centrar la cámara en el punto medio del cable seleccionado
             if (cable.coords && cable.coords.length > 0) {
                 const midPoint = cable.coords[Math.floor(cable.coords.length / 2)];
                 world.pointOfView({ lat: midPoint[0], lng: midPoint[1], altitude: 1.5 }, 1200);
@@ -243,9 +232,7 @@
             panel.classList.add('translate-y-96', 'opacity-0');
         }
 
-        // Sistema de Filtrado e Interacción con el Buscador
         function filterCables(category) {
-            // Cambiar estilos de botones
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('bg-cyan-950', 'text-cyan-300', 'border-cyan-800');
                 btn.classList.add('bg-gray-900', 'text-gray-300', 'border-gray-700');
@@ -271,7 +258,6 @@
             updateGlobePaths(filtered);
         });
 
-        // Inicializar al cargar la ventana
         window.onload = initGlobe;
     </script>
 </body>
