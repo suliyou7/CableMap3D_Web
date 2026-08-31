@@ -109,7 +109,7 @@
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
                 .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.01)
                 .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.004)
-                .pathDashAnimateSpeed(d => d.status === 'fault' ? 0 : 12)
+                .pathDashAnimateTime(d => d.status === 'fault' ? 0 : 3000)
                 .pathStroke(d => d.status === 'fault' ? 3 : 1.5)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
