@@ -48,9 +48,9 @@
             <!-- Filtros rápidos -->
             <div class="flex flex-wrap gap-2 pt-1">
                 <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
-                <button onclick="filterCables('Transatlantic', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
-                <button onclick="filterCables('Transpacific', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
-                <button onclick="filterCables('Africa', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">África / Europa</button>
+                <button onclick="filterCables('Transatlántico', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
+                <button onclick="filterCables('Transpacífico', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
+                <button onclick="filterCables('África', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">África / Europa</button>
                 <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-red-950 text-red-300 border border-red-800 px-3 py-1 rounded-md transition hover:bg-red-900">Ver Averías</button>
             </div>
         </div>
@@ -95,24 +95,67 @@
     </div>
 
     <script>
+        // Restaurada tu lista de datos local para evitar fallos de APIs externas
+        const submarineCables = [
+            {
+                name: "MAREA", region: "Transatlántico", owners: "Microsoft, Meta, Telxius", rfs: "2017", length: "6,600 km", landings: "Virginia Beach (EEUU) - Sopelana (España)", color: "#06b6d4",
+                coords: [ [36.8529, -75.9780], [39.0, -40.0], [43.3833, -2.9833] ]
+            },
+            {
+                name: "Curie", region: "Transpacífico", owners: "Google", rfs: "2019", length: "10,500 km", landings: "Los Ángeles (EEUU) - Valparaíso (Chile)", color: "#3b82f6",
+                coords: [ [33.7420, -118.25], [10.0, -110.0], [-15.0, -90.0], [-33.0472, -71.6127] ]
+            },
+            {
+                name: "2Africa", region: "África / Europa / Medio Oriente", owners: "Meta, Vodafone, Orange, MTN, Telecom Egypt", rfs: "2024 (En despliegue)", length: "45,000 km", landings: "Circunda África, Europa y Medio Oriente", color: "#10b981",
+                coords: [ [51.5074, -0.1278], [36.7538, 3.0588], [31.2001, 29.9187], [-1.2921, 36.8219], [-25.9692, 32.5732], [30.0444, 31.2357] ]
+            },
+            {
+                name: "EllaLink", region: "Transatlántico Sur", owners: "EllaLink, Telebras", rfs: "2021", length: "6,000 km", landings: "Sines (Portugal) - Fortaleza (Brasil)", color: "#8b5cf6",
+                coords: [ [37.9556, -8.8639], [15.0, -30.0], [-3.7172, -38.5433] ]
+            },
+            {
+                name: "Dunant", region: "Transatlántico Norte", owners: "Google", rfs: "2020", length: "6,600 km", landings: "Virginia Beach (EEUU) - Saint-Hilaire-de-Riez (Francia)", color: "#ec4899",
+                coords: [ [36.8529, -75.9780], [42.0, -35.0], [46.7667, -1.9500] ]
+            },
+            {
+                name: "Monet", region: "América / Transatlántico", owners: "Google, Algar Telecom, Angola Cables, ANTEL", rfs: "2017", length: "10,556 km", landings: "Boca Raton (EEUU) - Fortaleza y Santos (Brasil)", color: "#f59e0b",
+                coords: [ [26.3683, -80.0898], [5.0, -45.0], [-3.7172, -38.5433], [-23.9618, -46.3322] ]
+            }
+        ];
+
         let world;
         let globalCablesData = []; 
 
         function initGlobe() {
+            // Mapeamos los datos locales añadiendo la lógica de estado/avería
+            globalCablesData = submarineCables.map(cable => {
+                // Para demostración, forzamos que el cable 'Curie' esté caído.
+                const isFaulty = cable.name === 'Curie'; 
+                
+                return {
+                    ...cable,
+                    status: isFaulty ? 'fault' : 'active',
+                    incident_details: isFaulty ? `Corte de fibra detectado en aguas internacionales. Reportado por FiberAtlantic.` : null
+                };
+            });
+
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
                 .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
                 .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+                .pathsData(globalCablesData) 
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
                 .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.01)
                 .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.004)
-                .pathDashAnimateTime(d => d.status === 'fault' ? 0 : 3000)
+                // CORRECCIÓN: Un tiempo de 0 rompe el motor WebGL. Usamos un número enorme para "detener" la animación de la avería.
+                .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 3000)
                 .pathStroke(d => d.status === 'fault' ? 3 : 1.5)
-                .pathPointLat(p => p[1])
-                .pathPointLng(p => p[0])
+                // CORRECCIÓN: Volvemos al formato original [lat, lng] de tu array manual
+                .pathPointLat(p => p[0])
+                .pathPointLng(p => p[1])
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.9); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
@@ -124,53 +167,6 @@
             world.controls().autoRotate = true;
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
-
-            fetchGlobalCables();
-        }
-
-        async function fetchGlobalCables() {
-            try {
-                // Proxy CORS para evitar bloqueos al abrir el archivo en local + API oficial
-                const targetUrl = 'https://www.submarinecablemap.com/api/v3/cable/cable-geo.json';
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-                
-                const response = await fetch(proxyUrl);
-                const geojson = await response.json();
-                
-                let processedData = [];
-
-                geojson.features.forEach(feature => {
-                    const props = feature.properties;
-                    const isFaulty = Math.random() < 0.03; // 3% de averías simuladas
-                    
-                    const baseCable = {
-                        id: props.id,
-                        name: props.name || 'Cable Desconocido',
-                        color: props.color || '#06b6d4',
-                        length: props.length ? `${props.length} km` : 'No especificada',
-                        owners: props.owners || props.suppliers || 'Consorcio privado',
-                        rfs: props.rfs || 'Desconocido',
-                        status: isFaulty ? 'fault' : 'active',
-                        incident_details: isFaulty ? `Corte de fibra detectado. Reportado por FiberAtlantic/SubTel.` : null
-                    };
-
-                    // Procesa todas las ramas si el cable es MultiLineString
-                    if (feature.geometry.type === 'LineString') {
-                        processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
-                    } else if (feature.geometry.type === 'MultiLineString') {
-                        feature.geometry.coordinates.forEach(segment => {
-                            processedData.push({ ...baseCable, coords: segment });
-                        });
-                    }
-                });
-
-                globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0); 
-                world.pathsData(globalCablesData);
-                
-            } catch (error) {
-                console.error("Error cargando la base de datos de cables:", error);
-                alert("Error de conexión. Intenta recargar la página.");
-            }
         }
 
         function selectCable(cable) {
@@ -178,7 +174,7 @@
             const alertBox = document.getElementById('incident-alert');
             
             document.getElementById('cable-name').innerText = cable.name;
-            document.getElementById('cable-region').innerText = 'ID: ' + cable.id;
+            document.getElementById('cable-region').innerText = cable.region;
             document.getElementById('cable-owners').innerText = cable.owners;
             document.getElementById('cable-rfs').innerText = cable.rfs;
             document.getElementById('cable-length').innerText = cable.length;
@@ -197,7 +193,7 @@
 
             if (cable.coords && cable.coords.length > 0) {
                 const midPoint = cable.coords[Math.floor(cable.coords.length / 2)];
-                world.pointOfView({ lat: midPoint[1], lng: midPoint[0], altitude: 1.2 }, 1200);
+                world.pointOfView({ lat: midPoint[0], lng: midPoint[1], altitude: 1.2 }, 1200);
             }
         }
 
@@ -210,8 +206,8 @@
             if (category === 'all') {
                 world.pathsData(globalCablesData);
             } else {
-                const filtered = globalCablesData.filter(c => c.name.toLowerCase().includes(category.toLowerCase()));
-                world.pathsData(filtered.length > 0 ? filtered : globalCablesData);
+                const filtered = globalCablesData.filter(c => c.region.toLowerCase().includes(category.toLowerCase()));
+                world.pathsData(filtered);
             }
         }
 
@@ -238,7 +234,8 @@
             const query = e.target.value.toLowerCase();
             const filtered = globalCablesData.filter(c => 
                 c.name.toLowerCase().includes(query) || 
-                (c.owners && c.owners.toLowerCase().includes(query))
+                (c.owners && c.owners.toLowerCase().includes(query)) ||
+                (c.landings && c.landings.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
         });
