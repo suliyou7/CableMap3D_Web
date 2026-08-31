@@ -48,7 +48,7 @@
             <!-- Filtros rápidos -->
             <div class="flex flex-wrap gap-2 pt-1">
                 <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
-                <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-red-950 text-red-300 border border-red-800 px-3 py-1 rounded-md transition hover:bg-red-900">Ver Averías</button>
+                <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Ver Averías</button>
             </div>
         </div>
 
@@ -92,11 +92,10 @@
     </div>
 
     <script>
-let world;
+        let world;
         let globalCablesData = [];
         let selectedCable = null;
 
-        // Base de datos de capacidades extraída de forma global
         const knownCapacities = {
             'marea': 224, 'grace hopper': 352, 'dunant': 250, 'canalink': 5.12,
             '2africa': 180, 'equiano': 144, 'firmina': 140, 'sea-me-we 5': 24,
@@ -127,7 +126,6 @@ let world;
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 
-                // Lógica de color corregida para no hacerlos invisibles
                 .pathColor(d => {
                     if (selectedCable) {
                         return d.id === selectedCable.id ? '#fbbf24' : 'rgba(255, 255, 255, 0.15)'; 
@@ -135,7 +133,6 @@ let world;
                     return d.status === 'fault' ? '#ef4444' : d.color;
                 })
                 
-                // Lee las variables pre-calculadas en lugar de ejecutar fórmulas en tiempo real
                 .pathDashLength(d => (selectedCable && d.id !== selectedCable.id) ? 0 : d.dashLength)
                 .pathDashGap(d => d.dashGap)
                 .pathDashAnimateTime(d => d.dashSpeed)
@@ -155,7 +152,7 @@ let world;
                 .onGlobeClick(() => {
                     selectedCable = null;
                     world.pathsData(world.pathsData()); 
-                    closeDetails(); // Cierra el panel si se hace clic fuera
+                    closeDetails();
                 });
 
             world.controls().autoRotate = true; 
@@ -192,7 +189,6 @@ let world;
                         incident_details: isFaulty ? 'Corte de fibra detectado en segmento de red.' : null
                     };
 
-                    // PRE-CÁLCULO de variables dinámicas visuales
                     const cap = getCapacity(baseCable);
                     baseCable.dashLength = Math.min(0.08, Math.max(0.01, cap * 0.0002));
                     baseCable.dashGap = Math.max(0.002, 0.02 - (cap * 0.00005));
@@ -223,7 +219,6 @@ let world;
                 
                 const data = await response.json();
                 
-                // Mapear los datos a los IDs existentes en tu HTML
                 document.getElementById('cable-name').innerText = data.name || cable.name;
                 document.getElementById('cable-region').innerText = data.url ? data.url.split('/')[0].toUpperCase() : 'GLOBAL';
                 document.getElementById('cable-status').innerText = cable.status === 'fault' ? '🔴 Fuera de servicio' : '🟢 Operativo';
