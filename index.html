@@ -92,38 +92,30 @@
     </div>
 
     <script>
-        let world;
+let world;
         let globalCablesData = [];
-        let selectedCable = null; // Variable global para rastrear el cable seleccionado
+        let selectedCable = null;
 
-function initGlobe() {
+        // Base de datos de capacidades extraída de forma global
+        const knownCapacities = {
+            'marea': 224, 'grace hopper': 352, 'dunant': 250, 'canalink': 5.12,
+            '2africa': 180, 'equiano': 144, 'firmina': 140, 'sea-me-we 5': 24,
+            'sea-me-we 6': 100, 'apollo': 3.2
+        };
+
+        function getCapacity(cable) {
+            const name = cable.name ? cable.name.toLowerCase() : '';
+            for (const [cableName, capacityTbps] of Object.entries(knownCapacities)) {
+                if (name.includes(cableName)) return capacityTbps;
+            }
+            const lengthRaw = cable.length ? String(cable.length).replace(/[^0-9.]/g, '') : '5000';
+            const lengthKm = parseFloat(lengthRaw) || 5000;
+            return Math.max(1, 50000 / lengthKm); 
+        }
+
+        function initGlobe() {
             const container = document.getElementById('globe-container');
             
-            const knownCapacities = {
-                'marea': 224,
-                'grace hopper': 352,
-                'dunant': 250,
-                'canalink': 5.12,
-                '2africa': 180,
-                'equiano': 144,
-                'firmina': 140,
-                'sea-me-we 5': 24,
-                'sea-me-we 6': 100,
-                'apollo': 3.2
-            };
-
-            function getCapacity(cable) {
-                const name = cable.name ? cable.name.toLowerCase() : '';
-                for (const [cableName, capacityTbps] of Object.entries(knownCapacities)) {
-                    if (name.includes(cableName)) {
-                        return capacityTbps;
-                    }
-                }
-                const lengthRaw = cable.length ? String(cable.length).replace(/[^0-9.]/g, '') : '5000';
-                const lengthKm = parseFloat(lengthRaw) || 5000;
-                return Math.max(1, 50000 / lengthKm); 
-            }
-
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
                 .backgroundColor('#030712')
@@ -135,31 +127,19 @@ function initGlobe() {
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 
-                // Lógica de resaltado: si hay un cable seleccionado, atenúa el resto y resalta el elegido
-                // Lógica de resaltado corregida
+                // Lógica de color corregida para no hacerlos invisibles
                 .pathColor(d => {
                     if (selectedCable) {
-                        if (d.id === selectedCable.id) return '#fbbf24'; // Cable seleccionado en ámbar
-                        return 'rgba(255, 255, 255, 0.15)'; // Blanco translúcido para mantener el resto de la red visible como marca de agua
+                        return d.id === selectedCable.id ? '#fbbf24' : 'rgba(255, 255, 255, 0.15)'; 
                     }
                     return d.status === 'fault' ? '#ef4444' : d.color;
                 })
                 
-                .pathDashLength(d => {
-                    // Oculta el tráfico de datos en los cables atenuados para limpiar la visualización
-                    if (selectedCable && d.id !== selectedCable.id) return 0; 
-                    const cap = getCapacity(d);
-                    return Math.min(0.08, Math.max(0.01, cap * 0.0002));
-                })
-                .pathDashGap(d => {
-                    const cap = getCapacity(d);
-                    return Math.max(0.002, 0.02 - (cap * 0.00005));
-                })
-                .pathDashAnimateTime(d => {
-                    const cap = getCapacity(d);
-                    return Math.max(800, Math.min(15000, 300000 / cap));
-                })
-                .pathDashInitialPhase(() => Math.random() * 2) 
+                // Lee las variables pre-calculadas en lugar de ejecutar fórmulas en tiempo real
+                .pathDashLength(d => (selectedCable && d.id !== selectedCable.id) ? 0 : d.dashLength)
+                .pathDashGap(d => d.dashGap)
+                .pathDashAnimateTime(d => d.dashSpeed)
+                .pathDashInitialPhase(d => d.initialPhase) 
                 
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.9); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
@@ -169,13 +149,13 @@ function initGlobe() {
                 `)
                 .onPathClick(d => {
                     selectedCable = d;
-                    // Fuerza el redibujado del mapa para aplicar los nuevos colores y ocultar el tráfico
                     world.pathsData(world.pathsData()); 
                     selectCable(d);
                 })
                 .onGlobeClick(() => {
                     selectedCable = null;
                     world.pathsData(world.pathsData()); 
+                    closeDetails(); // Cierra el panel si se hace clic fuera
                 });
 
             world.controls().autoRotate = true; 
@@ -191,12 +171,8 @@ function initGlobe() {
         
         async function fetchGlobalCables() {
             try {
-                console.log("Solicitando cable-geo.json...");
                 const response = await fetch('cable-geo.json');
-                
-                if (!response.ok) {
-                    throw new Error(`Código de estado HTTP: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP: ${response.status}`);
                 
                 const geojson = await response.json();
                 let processedData = [];
@@ -216,6 +192,13 @@ function initGlobe() {
                         incident_details: isFaulty ? 'Corte de fibra detectado en segmento de red.' : null
                     };
 
+                    // PRE-CÁLCULO de variables dinámicas visuales
+                    const cap = getCapacity(baseCable);
+                    baseCable.dashLength = Math.min(0.08, Math.max(0.01, cap * 0.0002));
+                    baseCable.dashGap = Math.max(0.002, 0.02 - (cap * 0.00005));
+                    baseCable.dashSpeed = Math.max(800, Math.min(15000, 300000 / cap));
+                    baseCable.initialPhase = Math.random() * 2;
+
                     if (feature.geometry && feature.geometry.type === 'LineString') {
                         processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
                     } else if (feature.geometry && feature.geometry.type === 'MultiLineString') {
@@ -226,8 +209,6 @@ function initGlobe() {
                 });
 
                 globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0); 
-                console.log(`✅ Procesamiento de matriz finalizado: ${globalCablesData.length} segmentos renderizados.`);
-                
                 world.pathsData(globalCablesData);
                 
             } catch (error) {
@@ -241,7 +222,6 @@ function initGlobe() {
                 if (!response.ok) throw new Error('Datos no encontrados en la API');
                 
                 const data = await response.json();
-                console.log("Datos obtenidos:", data);
                 
                 // Mapear los datos a los IDs existentes en tu HTML
                 document.getElementById('cable-name').innerText = data.name || cable.name;
@@ -250,11 +230,9 @@ function initGlobe() {
                 document.getElementById('cable-rfs').innerText = data.rfs || 'Desconocido';
                 document.getElementById('cable-length').innerText = data.length || cable.length;
                 
-                // Limpiar etiquetas HTML de los propietarios
                 const cleanOwners = data.owners ? data.owners.replace(/(<([^>]+)>)/gi, "") : 'No especificado';
                 document.getElementById('cable-owners').innerText = cleanOwners;
 
-                // Lógica para mostrar u ocultar la alerta de avería
                 const alertBox = document.getElementById('incident-alert');
                 if (cable.status === 'fault') {
                     alertBox.classList.remove('hidden');
@@ -263,9 +241,7 @@ function initGlobe() {
                     alertBox.classList.add('hidden');
                 }
 
-                // Animar la aparición del panel
-                const detailPanel = document.getElementById('detail-panel');
-                detailPanel.classList.remove('translate-y-96', 'opacity-0');
+                document.getElementById('detail-panel').classList.remove('translate-y-96', 'opacity-0');
 
             } catch (error) {
                 console.error("Error al obtener los detalles:", error);
