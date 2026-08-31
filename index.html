@@ -127,11 +127,11 @@
 
         async function fetchGlobalCables() {
             try {
-                // AQUÍ ESTÁ LA CORRECCIÓN: Lee tu archivo local directamente
-                const response = await fetch('./cables.json');
+                // MODIFICADO AQUÍ: Busca "cable-geo.json" coincidiendo con tu carpeta
+                const response = await fetch('./cable-geo.json');
                 
                 if (!response.ok) {
-                    throw new Error("No se pudo cargar el archivo cables.json. Verifica que esté en la misma carpeta.");
+                    throw new Error("No se pudo cargar el archivo local.");
                 }
                 
                 const geojson = await response.json();
@@ -166,7 +166,7 @@
                 
             } catch (error) {
                 console.error("Error cargando cables:", error);
-                alert("Asegúrate de haber guardado el archivo como 'cables.json' en la misma carpeta que este HTML.");
+                alert("Asegúrate de ejecutar esto en un servidor local o en GitHub Pages. Abrir el archivo directamente con doble clic puede bloquear la carga del JSON por seguridad del navegador.");
             }
         }
 
