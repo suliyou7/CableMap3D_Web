@@ -95,7 +95,7 @@
         let world;
         let globalCablesData = []; 
 
-        function initGlobe() {
+    function initGlobe() {
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
@@ -135,9 +135,14 @@
                 })
                 .catch(err => console.error("Fallo al cargar mapa base:", err));
 
-            world.controls().autoRotate = true;
+            world.controls().autoRotate = true; 
             world.controls().autoRotateSpeed = 0.3;
             world.controls().enableZoom = true;
+
+            // Detecta el inicio de la interacción (ratón o táctil) y detiene la rotación
+            world.controls().addEventListener('start', () => {
+                world.controls().autoRotate = false;
+            });
 
             fetchGlobalCables();
         }
