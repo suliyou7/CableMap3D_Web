@@ -99,12 +99,14 @@ function initGlobe() {
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
+                // Carga una textura de alta resolución que incluye todas las islas y detalles geográficos
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
                 .backgroundColor('#030712')
                 .showAtmosphere(true)
                 .atmosphereColor('#06b6d4')
                 .atmosphereAltitude(0.15)
                 
-                // Configuración de cables - Modo Seguro
+                // Configuración de cables
                 .pathPoints('coords') 
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
@@ -119,21 +121,6 @@ function initGlobe() {
                     </div>
                 `)
                 .onPathClick(d => selectCable(d));
-
-            // Carga de continentes en ALTA resolución (incluye islas)
-            fetch('https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson')
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.json();
-                })
-                .then(countries => {
-                    console.log("Continentes de alta resolución cargados.");
-                    world.polygonsData(countries.features)
-                        .polygonCapColor(() => '#0f172a')
-                        .polygonSideColor(() => '#000000')
-                        .polygonStrokeColor(() => '#1e293b');
-                })
-                .catch(err => console.error("Fallo al cargar mapa base:", err));
 
             world.controls().autoRotate = true; 
             world.controls().autoRotateSpeed = 0.3;
