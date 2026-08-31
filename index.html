@@ -6,8 +6,7 @@
     <title>Global Submarine Cable Map | 3D Visualizer</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js v152 y Globe.gl compatibles -->
-    <script src="https://unpkg.com/three@0.152.0/build/three.js"></script>
+    <!-- Carga única y limpia del bundle oficial de Globe.gl (incluye Three.js optimizado) -->
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
@@ -48,10 +47,10 @@
 
             <!-- Filtros rápidos -->
             <div class="flex flex-wrap gap-2 pt-1">
-                <button onclick="filterCables('all')" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
-                <button onclick="filterCables('Transatlantic')" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
-                <button onclick="filterCables('Transpacific')" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
-                <button onclick="filterCables('Africa')" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">África / Europa</button>
+                <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
+                <button onclick="filterCables('Transatlantic', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
+                <button onclick="filterCables('Transpacific', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
+                <button onclick="filterCables('Africa', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">África / Europa</button>
             </div>
         </div>
 
@@ -187,9 +186,9 @@
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
-                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-                .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
                 .pathsData(submarineCables)
                 .pathColor(d => d.color)
                 .pathDashLength(0.01)
@@ -232,7 +231,7 @@
             panel.classList.add('translate-y-96', 'opacity-0');
         }
 
-        function filterCables(category) {
+        function filterCables(category, event) {
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.remove('bg-cyan-950', 'text-cyan-300', 'border-cyan-800');
                 btn.classList.add('bg-gray-900', 'text-gray-300', 'border-gray-700');
