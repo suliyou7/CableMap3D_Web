@@ -112,25 +112,20 @@ function initGlobe() {
                 'apollo': 3.2
             };
 
-            // Función para calcular el tiempo de animación (menor tiempo = mayor velocidad de partículas)
-            function getAnimationTime(cable) {
+            // Función unificada para obtener o estimar la capacidad en Tbps
+            function getCapacity(cable) {
                 const name = cable.name ? cable.name.toLowerCase() : '';
-                
-                // 1. Asignar velocidad basada en ancho de banda real (si se conoce)
                 for (const [cableName, capacityTbps] of Object.entries(knownCapacities)) {
                     if (name.includes(cableName)) {
-                        // Limita el tiempo mínimo a 800ms (muy rápido) y máximo a 15000ms (muy lento)
-                        return Math.max(800, Math.min(15000, 300000 / capacityTbps));
+                        return capacityTbps;
                     }
                 }
                 
-                // 2. Fallback: Velocidad basada en la longitud del cable si no hay datos de capacidad
-                // Extrae el número de la propiedad length (limpiando texto como "km")
+                // Estimación de contingencia basada en la longitud para cables no registrados
                 const lengthRaw = cable.length ? String(cable.length).replace(/[^0-9.]/g, '') : '5000';
                 const lengthKm = parseFloat(lengthRaw) || 5000;
-                
-                // Cables más largos tendrán un tiempo de animación mayor (parecerán constantes en velocidad)
-                return Math.max(2000, Math.min(12000, lengthKm * 1.2));
+                // Asigna mayor capacidad estimada a cables más cortos y viceversa
+                return Math.max(1, 50000 / lengthKm); 
             }
 
             world = Globe()(container)
@@ -145,10 +140,26 @@ function initGlobe() {
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
-                .pathDashLength(0.01)
-                .pathDashGap(0.005)
-                // Se invoca la función para asignar un tiempo dinámico por cada cable
-                .pathDashAnimateTime(d => getAnimationTime(d)) 
+                
+                // Efectos dinámicos avanzados de simulación de red
+                .pathDashLength(d => {
+                    const cap = getCapacity(d);
+                    // A mayor capacidad, mayor longitud del rastro de luz (bloques de datos más grandes)
+                    return Math.min(0.08, Math.max(0.01, cap * 0.0002));
+                })
+                .pathDashGap(d => {
+                    const cap = getCapacity(d);
+                    // A mayor capacidad, menor separación entre luces (tráfico continuo de alta densidad)
+                    return Math.max(0.002, 0.02 - (cap * 0.00005));
+                })
+                .pathDashAnimateTime(d => {
+                    const cap = getCapacity(d);
+                    // A mayor capacidad, menor tiempo de recorrido (mayor velocidad de transferencia)
+                    return Math.max(800, Math.min(15000, 300000 / cap));
+                })
+                // Inicia la animación en un punto aleatorio del cable para recrear flujo orgánico asimétrico
+                .pathDashInitialPhase(() => Math.random() * 2) 
+                
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.9); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
