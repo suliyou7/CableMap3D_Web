@@ -98,8 +98,42 @@
 function initGlobe() {
             const container = document.getElementById('globe-container');
             
+            // Diccionario interno de capacidades conocidas en Tbps
+            const knownCapacities = {
+                'marea': 224,
+                'grace hopper': 352,
+                'dunant': 250,
+                'canalink': 5.12,
+                '2africa': 180,
+                'equiano': 144,
+                'firmina': 140,
+                'sea-me-we 5': 24,
+                'sea-me-we 6': 100,
+                'apollo': 3.2
+            };
+
+            // Función para calcular el tiempo de animación (menor tiempo = mayor velocidad de partículas)
+            function getAnimationTime(cable) {
+                const name = cable.name ? cable.name.toLowerCase() : '';
+                
+                // 1. Asignar velocidad basada en ancho de banda real (si se conoce)
+                for (const [cableName, capacityTbps] of Object.entries(knownCapacities)) {
+                    if (name.includes(cableName)) {
+                        // Limita el tiempo mínimo a 800ms (muy rápido) y máximo a 15000ms (muy lento)
+                        return Math.max(800, Math.min(15000, 300000 / capacityTbps));
+                    }
+                }
+                
+                // 2. Fallback: Velocidad basada en la longitud del cable si no hay datos de capacidad
+                // Extrae el número de la propiedad length (limpiando texto como "km")
+                const lengthRaw = cable.length ? String(cable.length).replace(/[^0-9.]/g, '') : '5000';
+                const lengthKm = parseFloat(lengthRaw) || 5000;
+                
+                // Cables más largos tendrán un tiempo de animación mayor (parecerán constantes en velocidad)
+                return Math.max(2000, Math.min(12000, lengthKm * 1.2));
+            }
+
             world = Globe()(container)
-                // Carga una textura de alta resolución que incluye todas las islas y detalles geográficos
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
                 .backgroundColor('#030712')
                 .showAtmosphere(true)
@@ -113,7 +147,8 @@ function initGlobe() {
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color)
                 .pathDashLength(0.01)
                 .pathDashGap(0.005)
-                .pathDashAnimateTime(3000)
+                // Se invoca la función para asignar un tiempo dinámico por cada cable
+                .pathDashAnimateTime(d => getAnimationTime(d)) 
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.9); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
