@@ -10,6 +10,18 @@
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+        #glob<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Globe.gl bundle -->
+    <script src="https://unpkg.com/globe.gl"></script>
+    <style>
+        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
         #globe-container { 
             width: 100vw; 
             height: 100vh; 
@@ -45,7 +57,7 @@
                         <span class="h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></span>
                         <h1 class="text-xl font-bold tracking-wider text-cyan-400 uppercase">Submarine Cable 3D</h1>
                     </div>
-                    <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">API Conectada</span>
+                    <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">Cargando datos...</span>
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Monitoreo de tráfico en tiempo real e incidencias globales.</p>
             </div>
@@ -108,96 +120,88 @@
         let world;
         let globalCablesData = []; 
 
-function initGlobe() {
-    const container = document.getElementById('globe-container');
-    
-    world = Globe()(container)
-        .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-        // Se elimina bumpImageUrl para acelerar la carga del lienzo WebGL
-        .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
-        .pathPoints(d => d.coords) 
-        .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color || '#06b6d4')
-        .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.2)
-        .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.08)
-        .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 4000)
-        .pathStroke(1.4) // Grosor fijo optimizado para renderizado rápido
-        .pathPointLat(p => p[1])
-        .pathPointLng(p => p[0])
-        .pathLabel(d => `
-            <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
-                <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
-                ${d.status === 'fault' ? '⚠️ Avería reportada' : '⚡ Tráfico Activo (' + d.trafficLoad + ')'}
-            </div>
-        `)
-        .onPathClick(d => {
-            world.controls().autoRotate = false;
-            selectCable(d);
-        });
+        function initGlobe() {
+            const container = document.getElementById('globe-container');
+            
+            world = Globe()(container)
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+                .pathPoints(d => d.coords) 
+                .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color || '#06b6d4')
+                .pathDashLength(0.2)
+                .pathDashGap(0.08)
+                .pathDashAnimateTime(4000)
+                .pathStroke(1.4)
+                .pathPointLat(p => p[1])
+                .pathPointLng(p => p[0])
+                .pathLabel(d => `
+                    <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
+                        <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
+                        ${d.status === 'fault' ? '⚠️ Avería reportada' : '⚡ Tráfico Activo (' + d.trafficLoad + ')'}
+                    </div>
+                `)
+                .onPathClick(d => {
+                    world.controls().autoRotate = false;
+                    selectCable(d);
+                });
 
-    const controls = world.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.3;
-    controls.enableZoom = true;
-    controls.enablePan = true;
-    controls.panSpeed = 1.2;
+            const controls = world.controls();
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.3;
+            controls.enableZoom = true;
+            controls.enablePan = true;
 
-    controls.addEventListener('start', () => {
-        controls.autoRotate = false;
-    });
+            controls.addEventListener('start', () => {
+                controls.autoRotate = false;
+            });
 
-    loadCableDataAndIncidents();
-}
+            // Disparar la carga de datos inmediatamente en paralelo
+            loadCableDataAndIncidents();
+        }
 
         async function loadCableDataAndIncidents() {
             try {
+                // Usamos la ruta relativa explícita para evitar demoras en GitHub Pages
                 const geoResponse = await fetch('./cable-geo.json');
                 const geojson = await geoResponse.json();
-                
-                let activeIncidents = [];
-                try {
-                    const apiResponse = await fetch('https://api.allorigins.win/raw?url=https://httpbin.org/json');
-                    activeIncidents = [
-                        { id: "marea-atlantic", description: "Corte parcial detectado en segmento europeo por actividad sísmica menor." },
-                        { id: "curie-pacific", description: "Mantenimiento programado y re-enrutamiento de tráfico activo." }
-                    ];
-                } catch (apiErr) {
-                    console.warn("Aviso de API de incidencias:", apiErr);
-                }
 
                 let processedData = [];
 
-                geojson.features.forEach(feature => {
+                // Generación acelerada de estructuras
+                const len = geojson.features.length;
+                for (let i = 0; i < len; i++) {
+                    const feature = geojson.features[i];
                     const props = feature.properties;
-                    const apiIncident = activeIncidents.find(inc => inc.id === props.id || (props.name && props.name.toLowerCase().includes(inc.id.split('-')[0])));
-                    const isFaulty = !!apiIncident || Math.random() < 0.02;
-                    const trafficLoad = Math.floor(Math.random() * 45) + 85 + " Gbps";
+                    const isFaulty = Math.random() < 0.02;
 
                     const baseCable = {
-                        id: props.id || 'cable-' + Math.random().toString(36).substring(7),
+                        id: props.id || 'cable-' + i,
                         name: props.name || 'Cable Submarino',
                         color: props.color || '#06b6d4',
                         length: props.length ? `${props.length} km` : 'No especificada',
                         owners: props.owners || props.suppliers || 'Consorcio internacional',
-                        rfs: props.rfs || '2019 - 2023',
-                        trafficLoad: trafficLoad,
+                        trafficLoad: (85 + (i % 40)) + " Gbps",
                         status: isFaulty ? 'fault' : 'active',
-                        incident_details: apiIncident ? apiIncident.description : (isFaulty ? "Anomalía de latencia y caída de paquetes reportada por estaciones de amarre." : null)
+                        incident_details: isFaulty ? "Anomalía de latencia y caída de paquetes reportada por estaciones de amarre." : null
                     };
 
                     if (feature.geometry.type === 'LineString') {
                         processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
                     } else if (feature.geometry.type === 'MultiLineString') {
-                        feature.geometry.coordinates.forEach(segment => {
-                            processedData.push({ ...baseCable, coords: segment });
-                        });
+                        const segments = feature.geometry.coordinates;
+                        for (let j = 0; j < segments.length; j++) {
+                            processedData.push({ ...baseCable, coords: segments[j] });
+                        }
                     }
-                });
+                }
 
-                globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0); 
+                globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
+
+                document.getElementById('api-status').innerText = 'Datos Listos';
+                document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
                 
             } catch (error) {
-                console.error("Error crítico cargando los datos:", error);
+                console.error("Error cargando los datos:", error);
                 document.getElementById('api-status').innerText = 'Error de carga';
                 document.getElementById('api-status').className = 'text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full';
             }
