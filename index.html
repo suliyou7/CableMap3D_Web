@@ -108,46 +108,45 @@
         let world;
         let globalCablesData = []; 
 
-        function initGlobe() {
-            const container = document.getElementById('globe-container');
-            
-            world = Globe()(container)
-                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-                .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
-                .pathPoints(d => d.coords) 
-                .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color || '#06b6d4')
-                .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.25)
-                .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.1)
-                .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 4000)
-                .pathStroke(d => d.status === 'fault' ? 3 : 2.0)
-                .pathPointLat(p => p[1])
-                .pathPointLng(p => p[0])
-                .pathLabel(d => `
-                    <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
-                        <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
-                        ${d.status === 'fault' ? '⚠️ Avería reportada' : '⚡ Tráfico Activo (' + d.trafficLoad + ')'}
-                    </div>
-                `)
-                .onPathClick(d => {
-                    world.controls().autoRotate = false;
-                    selectCable(d);
-                });
+function initGlobe() {
+    const container = document.getElementById('globe-container');
+    
+    world = Globe()(container)
+        .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+        // Se elimina bumpImageUrl para acelerar la carga del lienzo WebGL
+        .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+        .pathPoints(d => d.coords) 
+        .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color || '#06b6d4')
+        .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.2)
+        .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.08)
+        .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 4000)
+        .pathStroke(1.4) // Grosor fijo optimizado para renderizado rápido
+        .pathPointLat(p => p[1])
+        .pathPointLng(p => p[0])
+        .pathLabel(d => `
+            <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
+                <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
+                ${d.status === 'fault' ? '⚠️ Avería reportada' : '⚡ Tráfico Activo (' + d.trafficLoad + ')'}
+            </div>
+        `)
+        .onPathClick(d => {
+            world.controls().autoRotate = false;
+            selectCable(d);
+        });
 
-            const controls = world.controls();
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 0.3;
-            controls.enableZoom = true;
-            controls.enablePan = true;
-            controls.panSpeed = 1.2;
+    const controls = world.controls();
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.3;
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.panSpeed = 1.2;
 
-            // Detener el giro automáticamente al interactuar por primera vez
-            controls.addEventListener('start', () => {
-                controls.autoRotate = false;
-            });
+    controls.addEventListener('start', () => {
+        controls.autoRotate = false;
+    });
 
-            loadCableDataAndIncidents();
-        }
+    loadCableDataAndIncidents();
+}
 
         async function loadCableDataAndIncidents() {
             try {
