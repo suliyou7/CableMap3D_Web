@@ -10,6 +10,18 @@
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+        #globe-container { <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Globe.gl CDN (Incluye Three.js interno para evitar conflictos) -->
+    <script src="https://unpkg.com/globe.gl"></script>
+    <style>
+        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
         #globe-container { 
             width: 100vw; 
             height: 100vh; 
@@ -106,21 +118,23 @@
 
     <script>
         let world;
-        let globalCablesData = [];
+        let globalCablesData = []; 
+        let trafficPhotons = [];
+        let photonTexture;
 
-        // GeoJSON incrustado para evitar errores CORS/Path en GitHub Pages
+        // GeoJSON incrustado para prevenir fallos de CORS / Servidor local
         const fallbackGeoJSON = {
             "type": "FeatureCollection",
             "features": [
                 {
                     "type": "Feature",
                     "properties": { "id": "MAREA", "name": "MAREA (EE.UU. - España)", "length": "6600", "owners": "Microsoft, Meta, Telxius", "color": "#06b6d4" },
-                    "geometry": { "type": "LineString", "coordinates": [[-75.96, 36.85], [-30.0, 40.0], [-8.0, 43.5]] }
+                    "geometry": { "type": "LineString", "coordinates": [[-75.96, 36.85], [-50.0, 42.0], [-30.0, 40.0], [-8.0, 43.5]] }
                 },
                 {
                     "type": "Feature",
                     "properties": { "id": "CURIE", "name": "Curie (EE.UU. - Chile)", "length": "10500", "owners": "Google", "color": "#38bdf8" },
-                    "geometry": { "type": "LineString", "coordinates": [[-118.24, 34.05], [-105.0, 10.0], [-70.4, -23.6]] }
+                    "geometry": { "type": "LineString", "coordinates": [[-118.24, 34.05], [-105.0, 10.0], [-85.0, -5.0], [-70.4, -23.6]] }
                 },
                 {
                     "type": "Feature",
@@ -130,39 +144,77 @@
                 {
                     "type": "Feature",
                     "properties": { "id": "FASTER", "name": "FASTER (EE.UU. - Japón)", "length": "9000", "owners": "Google, China Mobile", "color": "#8b5cf6" },
-                    "geometry": { "type": "LineString", "coordinates": [[-123.9, 45.1], [180.0, 40.0], [139.7, 35.6]] }
+                    "geometry": { "type": "LineString", "coordinates": [[-123.9, 45.1], [-160.0, 48.0], [170.0, 42.0], [139.7, 35.6]] }
                 }
             ]
         };
 
+        // Crear la textura de luz usando el THREE interno de Globe.gl
+        function createPhotonTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(56, 189, 248, 0.9)');
+            gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.4)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+
+            const THREE = Globe.THREE;
+            return new THREE.CanvasTexture(canvas);
+        }
+
         function initGlobe() {
             const container = document.getElementById('globe-container');
+            const THREE = Globe.THREE;
+            photonTexture = createPhotonTexture();
             
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+                
                 .atmosphereColor('#0ea5e9')
                 .atmosphereAltitude(0.18)
                 
-                // Configuración de trazados de cables sólidos
+                // Trazados de cable base
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
-                .pathStroke(1.5)
+                .pathStroke(1.2)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
 
-                // Tráfico de datos animado con la API nativa de rutas
-                .pathDashLength(0.1)
-                .pathDashGap(0.05)
-                .pathDashAnimateTime(2000)
-
-                // Anillos interactivos
+                // Circunferencias dinámicas al hacer clic
                 .ringsData([])
                 .ringColor(d => d.color)
                 .ringMaxRadius(d => d.maxRadius)
                 .ringPropagationSpeed(d => d.speed)
                 .ringRepeatPeriod(d => d.period)
 
+                // Capa de Fotones 3D personalizados sobre el trazado exacto
+                .customLayerData([])
+                .customThreeObject(d => {
+                    const material = new THREE.SpriteMaterial({ 
+                        map: photonTexture, 
+                        color: d.color,
+                        transparent: true,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
+                    });
+                    const sprite = new THREE.Sprite(material);
+                    sprite.scale.set(d.size, d.size, 1.0);
+                    return sprite;
+                })
+                .customThreeObjectUpdate((obj, d) => {
+                    const coord = world.getCoords(d.lat, d.lng, d.alt);
+                    if (coord) {
+                        obj.position.set(coord.x, coord.y, coord.z);
+                    }
+                })
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
@@ -179,20 +231,27 @@
             const controls = world.controls();
             controls.autoRotate = true;
             controls.autoRotateSpeed = 0.4;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+
+            controls.addEventListener('start', () => {
+                controls.autoRotate = false;
+            });
 
             loadCableDataAndIncidents();
+            animateTrafficPhotons();
         }
 
         async function loadCableDataAndIncidents() {
             let geojson;
             try {
                 const geoResponse = await fetch('cable-geo.json');
-                if (!geoResponse.ok) throw new Error("HTTP error " + geoResponse.status);
+                if (!geoResponse.ok) throw new Error("No se pudo cargar cable-geo.json localmente");
                 geojson = await geoResponse.json();
                 document.getElementById('api-status').innerText = 'Datos Listos';
                 document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
             } catch (error) {
-                console.warn("Utilizando datos GeoJSON incrustados:", error);
+                console.warn("Utilizando datos GeoJSON incrustados de respaldo:", error);
                 geojson = fallbackGeoJSON;
                 document.getElementById('api-status').innerText = 'Modo Respaldo Activo';
                 document.getElementById('api-status').className = 'text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full';
@@ -228,6 +287,58 @@
 
             globalCablesData = processedData; 
             world.pathsData(globalCablesData);
+            generatePhotonsForCables(globalCablesData);
+        }
+
+        function generatePhotonsForCables(cables) {
+            trafficPhotons = [];
+
+            cables.forEach((cable) => {
+                if (!cable.coords || cable.coords.length < 2) return;
+                
+                const count = cable.status === 'fault' ? 1 : 4;
+                for (let i = 0; i < count; i++) {
+                    trafficPhotons.push({
+                        coords: cable.coords,
+                        progress: (i / count) + (Math.random() * 0.1),
+                        speed: (0.002 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.2 : 1.2),
+                        size: cable.status === 'fault' ? 1.4 : 0.9,
+                        color: cable.status === 'fault' ? '#ef4444' : (Math.random() > 0.5 ? '#38bdf8' : '#ffffff'),
+                        lat: cable.coords[0][1],
+                        lng: cable.coords[0][0],
+                        alt: 0.003
+                    });
+                }
+            });
+
+            world.customLayerData(trafficPhotons);
+        }
+
+        function animateTrafficPhotons() {
+            if (trafficPhotons.length > 0) {
+                trafficPhotons.forEach(p => {
+                    p.progress += p.speed;
+                    if (p.progress >= 1) p.progress = 0;
+
+                    const totalSegments = p.coords.length - 1;
+                    const currentPoint = p.progress * totalSegments;
+                    const index = Math.floor(currentPoint);
+                    const t = currentPoint - index;
+
+                    const nextIndex = Math.min(index + 1, totalSegments);
+
+                    const lng1 = p.coords[index][0];
+                    const lat1 = p.coords[index][1];
+                    const lng2 = p.coords[nextIndex][0];
+                    const lat2 = p.coords[nextIndex][1];
+
+                    p.lng = lng1 + (lng2 - lng1) * t;
+                    p.lat = lat1 + (lat2 - lat1) * t;
+                });
+
+                world.customLayerData(trafficPhotons);
+            }
+            requestAnimationFrame(animateTrafficPhotons);
         }
 
         function selectCable(cable) {
@@ -287,6 +398,7 @@
                 if (filtered.length === 0) filtered = globalCablesData;
             }
             world.pathsData(filtered);
+            generatePhotonsForCables(filtered);
         }
 
         function filterIncidents(event) {
@@ -294,6 +406,7 @@
             world.ringsData([]);
             const faults = globalCablesData.filter(c => c.status === 'fault');
             world.pathsData(faults);
+            generatePhotonsForCables(faults);
         }
 
         function updateFilterButtons(activeButton) {
@@ -318,6 +431,7 @@
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
+            generatePhotonsForCables(filtered);
         });
 
         window.addEventListener('DOMContentLoaded', initGlobe);
