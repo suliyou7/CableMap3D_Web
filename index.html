@@ -17,6 +17,25 @@
             top: 0; 
             left: 0; 
             z-index: 1; 
+            touch-action: none;<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Globe.gl bundle -->
+    <script src="https://unpkg.com/globe.gl"></script>
+    <style>
+        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+        #globe-container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
             touch-action: none;
         }
         .glass-panel {
