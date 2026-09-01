@@ -6,11 +6,20 @@
     <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl (incluye Three.js internamente) -->
+    <!-- Globe.gl & Three.js CDN -->
+    <script src="https://unpkg.com/three"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-        #globe-container { <!DOCTYPE html>
+        #globe-container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
+            touch-action: none;<!DOCTYPE html>
+            left: 0; <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -18,7 +27,9 @@
     <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl CDN (Incluye Three.js interno para evitar conflictos) -->
+    <!-- Globe.gl & Three.js CDN -->
+    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
@@ -48,7 +59,7 @@
 
     <!-- Interfaz de Usuario (UI) -->
     <div class="relative z-10 p-6 pointer-events-none flex flex-col justify-between h-screen max-w-lg">
-        
+
         <!-- Cabecera y Buscador -->
         <div class="glass-panel p-5 rounded-xl shadow-2xl pointer-events-auto space-y-4">
             <div>
@@ -57,7 +68,7 @@
                         <span class="h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></span>
                         <h1 class="text-xl font-bold tracking-wider text-cyan-400 uppercase">Submarine Cable 3D</h1>
                     </div>
-                    <span id="api-status" class="text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full">Iniciando...</span>
+                    <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">Cargando datos...</span>
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Monitoreo de tráfico en tiempo real e incidencias globales.</p>
             </div>
@@ -86,7 +97,7 @@
                 </div>
                 <button onclick="closeDetails()" class="text-gray-400 hover:text-white text-lg font-bold px-2">&times;</button>
             </div>
-            
+
             <div id="incident-alert" class="hidden mt-3 bg-red-950/50 border border-red-800 text-red-300 p-3 rounded-lg text-sm">
                 <div class="flex items-center space-x-2 font-bold mb-1">
                     <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
@@ -119,37 +130,10 @@
     <script>
         let world;
         let globalCablesData = []; 
+        let sphereParticles = [];
         let trafficPhotons = [];
-        let photonTexture;
 
-        // GeoJSON incrustado para prevenir fallos de CORS / Servidor local
-        const fallbackGeoJSON = {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "properties": { "id": "MAREA", "name": "MAREA (EE.UU. - España)", "length": "6600", "owners": "Microsoft, Meta, Telxius", "color": "#06b6d4" },
-                    "geometry": { "type": "LineString", "coordinates": [[-75.96, 36.85], [-50.0, 42.0], [-30.0, 40.0], [-8.0, 43.5]] }
-                },
-                {
-                    "type": "Feature",
-                    "properties": { "id": "CURIE", "name": "Curie (EE.UU. - Chile)", "length": "10500", "owners": "Google", "color": "#38bdf8" },
-                    "geometry": { "type": "LineString", "coordinates": [[-118.24, 34.05], [-105.0, 10.0], [-85.0, -5.0], [-70.4, -23.6]] }
-                },
-                {
-                    "type": "Feature",
-                    "properties": { "id": "2AFRICA", "name": "2Africa (Circunvalación África)", "length": "45000", "owners": "Meta, Vodafone, Orange", "color": "#10b981" },
-                    "geometry": { "type": "LineString", "coordinates": [[-0.12, 51.5], [-9.14, 38.7], [-17.4, 14.7], [18.4, -33.9], [39.2, -4.0], [32.5, 29.9]] }
-                },
-                {
-                    "type": "Feature",
-                    "properties": { "id": "FASTER", "name": "FASTER (EE.UU. - Japón)", "length": "9000", "owners": "Google, China Mobile", "color": "#8b5cf6" },
-                    "geometry": { "type": "LineString", "coordinates": [[-123.9, 45.1], [-160.0, 48.0], [170.0, 42.0], [139.7, 35.6]] }
-                }
-            ]
-        };
-
-        // Crear la textura de luz usando el THREE interno de Globe.gl
+        // Generar una textura programática ultrasensible para los pulsos de fotones
         function createPhotonTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 128;
@@ -165,28 +149,45 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, 128, 128);
 
-            const THREE = Globe.THREE;
             return new THREE.CanvasTexture(canvas);
         }
 
+        const photonTexture = createPhotonTexture();
+
         function initGlobe() {
             const container = document.getElementById('globe-container');
-            const THREE = Globe.THREE;
-            photonTexture = createPhotonTexture();
-            
+
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-                
+
+                // Atmósfera luminosa
                 .atmosphereColor('#0ea5e9')
                 .atmosphereAltitude(0.18)
-                
-                // Trazados de cable base
+
+                // 1. Líneas de cable continuas y sólidas
+                // Cables base: Trazado sólido, estilizado y nítido
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
                 .pathStroke(1.2)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
+                
+                // 2. Simulación de tráfico mediante ráfagas/cometas de datos dinámicos (arcs)
+                .arcsData([])
+                .arcStartLat(d => d.startLat)
+                .arcStartLng(d => d.startLng)
+                .arcEndLat(d => d.endLat)
+                .arcEndLng(d => d.endLng)
+                .arcColor(d => d.color)
+                .arcAltitude(0.001) // Pegados al trazado marino
+                .arcStroke(0.6)
+                .arcDashLength(0.2)
+                .arcDashGap(1)
+                .arcDashInitialGap(() => Math.random())
+                .arcDashAnimateTime(d => d.animateTime)
+
+                // 3. Anillos/pulsos radiantes (solo visibles al seleccionar cable)
 
                 // Circunferencias dinámicas al hacer clic
                 .ringsData([])
@@ -195,16 +196,21 @@
                 .ringPropagationSpeed(d => d.speed)
                 .ringRepeatPeriod(d => d.period)
 
-                // Capa de Fotones 3D personalizados sobre el trazado exacto
+                // 4. Capa de partículas físicas 3D navegando
+                // Capa de Fotones/Micro-paquetes de luz de alta definición
                 .customLayerData([])
                 .customThreeObject(d => {
+                    const geometry = new THREE.SphereGeometry(d.radius, 12, 12);
+                    const material = new THREE.MeshBasicMaterial({ 
                     const material = new THREE.SpriteMaterial({ 
                         map: photonTexture, 
                         color: d.color,
                         transparent: true,
+                        opacity: 0.95
                         blending: THREE.AdditiveBlending,
                         depthWrite: false
                     });
+                    return new THREE.Mesh(geometry, material);
                     const sprite = new THREE.Sprite(material);
                     sprite.scale.set(d.size, d.size, 1.0);
                     return sprite;
@@ -239,81 +245,116 @@
             });
 
             loadCableDataAndIncidents();
+            animateSpheres();
             animateTrafficPhotons();
         }
 
         async function loadCableDataAndIncidents() {
-            let geojson;
             try {
-                const geoResponse = await fetch('cable-geo.json');
-                if (!geoResponse.ok) throw new Error("No se pudo cargar cable-geo.json localmente");
-                geojson = await geoResponse.json();
-                document.getElementById('api-status').innerText = 'Datos Listos';
-                document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
-            } catch (error) {
-                console.warn("Utilizando datos GeoJSON incrustados de respaldo:", error);
-                geojson = fallbackGeoJSON;
-                document.getElementById('api-status').innerText = 'Modo Respaldo Activo';
-                document.getElementById('api-status').className = 'text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full';
-            }
+                const geoResponse = await fetch('./cable-geo.json');
+                const geojson = await geoResponse.json();
 
-            let processedData = [];
-            const len = geojson.features.length;
-            for (let i = 0; i < len; i++) {
-                const feature = geojson.features[i];
-                const props = feature.properties;
-                const isFaulty = Math.random() < 0.05;
+                let processedData = [];
 
-                const baseCable = {
-                    id: props.id || 'cable-' + i,
-                    name: props.name || 'Cable Submarino',
-                    color: props.color || '#06b6d4',
-                    length: props.length ? `${props.length} km` : 'No especificada',
-                    owners: props.owners || props.suppliers || 'Consorcio internacional',
-                    trafficLoad: (85 + (i % 40)) + " Gbps",
-                    status: isFaulty ? 'fault' : 'active',
-                    incident_details: isFaulty ? "Anomalía de latencia y caída de paquetes reportada por estaciones de amarre." : null
-                };
+                const len = geojson.features.length;
+                for (let i = 0; i < len; i++) {
+                    const feature = geojson.features[i];
+                    const props = feature.properties;
+                    const isFaulty = Math.random() < 0.02;
 
-                if (feature.geometry.type === 'LineString') {
-                    processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
-                } else if (feature.geometry.type === 'MultiLineString') {
-                    const segments = feature.geometry.coordinates;
-                    for (let j = 0; j < segments.length; j++) {
-                        processedData.push({ ...baseCable, coords: segments[j] });
+                    const baseCable = {
+                        id: props.id || 'cable-' + i,
+                        name: props.name || 'Cable Submarino',
+                        color: props.color || '#06b6d4',
+                        length: props.length ? `${props.length} km` : 'No especificada',
+                        owners: props.owners || props.suppliers || 'Consorcio internacional',
+                        trafficLoad: (85 + (i % 40)) + " Gbps",
+                        status: isFaulty ? 'fault' : 'active',
+                        incident_details: isFaulty ? "Anomalía de latencia y caída de paquetes reportada por estaciones de amarre." : null
+                    };
+
+                    if (feature.geometry.type === 'LineString') {
+                        processedData.push({ ...baseCable, coords: feature.geometry.coordinates });
+                    } else if (feature.geometry.type === 'MultiLineString') {
+                        const segments = feature.geometry.coordinates;
+                        for (let j = 0; j < segments.length; j++) {
+                            processedData.push({ ...baseCable, coords: segments[j] });
+                        }
                     }
                 }
-            }
 
-            globalCablesData = processedData; 
-            world.pathsData(globalCablesData);
-            generatePhotonsForCables(globalCablesData);
+                globalCablesData = processedData; 
+                world.pathsData(globalCablesData);
+
+                // Generar dinámicamente partículas 3D y ráfagas de tráfico
+                generateSpheresAndTrafficArcs(globalCablesData);
+                generatePhotonsForCables(globalCablesData);
+
+                document.getElementById('api-status').innerText = 'Datos Listos';
+                document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
+
+            } catch (error) {
+                console.error("Error cargando los datos:", error);
+                document.getElementById('api-status').innerText = 'Error de carga';
+                document.getElementById('api-status').className = 'text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full';
+            }
         }
 
+        function generateSpheresAndTrafficArcs(cables) {
+            sphereParticles = [];
+            let trafficArcs = [];
         function generatePhotonsForCables(cables) {
             trafficPhotons = [];
 
             cables.forEach((cable) => {
                 if (!cable.coords || cable.coords.length < 2) return;
-                
+
+                // Ráfagas de tráfico de datos (Cometas sobre la línea continua)
+                const startPt = cable.coords[0];
+                const endPt = cable.coords[cable.coords.length - 1];
+
+                trafficArcs.push({
+                    startLat: startPt[1],
+                    startLng: startPt[0],
+                    endLat: endPt[1],
+                    endLng: endPt[0],
+                    color: cable.status === 'fault' ? ['#ef4444', '#f87171'] : ['#38bdf8', '#ffffff'],
+                    animateTime: cable.status === 'fault' ? 6000 : (1500 + Math.random() * 2000)
+                });
+
+                // Partículas dinámicas 3D
+                const numSpheres = cable.status === 'fault' ? 1 : 2;
+                for (let s = 0; s < numSpheres; s++) {
+                    sphereParticles.push({
+                // Múltiples impulsos luminosos por trazado
                 const count = cable.status === 'fault' ? 1 : 4;
                 for (let i = 0; i < count; i++) {
                     trafficPhotons.push({
                         coords: cable.coords,
+                        progress: Math.random(),
+                        speed: (0.0015 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.3 : 1),
+                        radius: cable.status === 'fault' ? 0.7 : 0.45,
+                        color: cable.status === 'fault' ? '#f87171' : '#38bdf8',
                         progress: (i / count) + (Math.random() * 0.1),
                         speed: (0.002 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.2 : 1.2),
                         size: cable.status === 'fault' ? 1.4 : 0.9,
                         color: cable.status === 'fault' ? '#ef4444' : (Math.random() > 0.5 ? '#38bdf8' : '#ffffff'),
                         lat: cable.coords[0][1],
                         lng: cable.coords[0][0],
+                        alt: 0.005
                         alt: 0.003
                     });
                 }
             });
 
+            world.arcsData(trafficArcs);
+            world.customLayerData(sphereParticles);
             world.customLayerData(trafficPhotons);
         }
 
+        function animateSpheres() {
+            if (sphereParticles.length > 0) {
+                sphereParticles.forEach(p => {
         function animateTrafficPhotons() {
             if (trafficPhotons.length > 0) {
                 trafficPhotons.forEach(p => {
@@ -336,21 +377,23 @@
                     p.lat = lat1 + (lat2 - lat1) * t;
                 });
 
+                world.customLayerData(sphereParticles);
                 world.customLayerData(trafficPhotons);
             }
+            requestAnimationFrame(animateSpheres);
             requestAnimationFrame(animateTrafficPhotons);
         }
 
         function selectCable(cable) {
             const panel = document.getElementById('detail-panel');
             const alertBox = document.getElementById('incident-alert');
-            
+
             document.getElementById('cable-name').innerText = cable.name;
             document.getElementById('cable-region').innerText = 'ID: ' + cable.id;
             document.getElementById('cable-owners').innerText = cable.owners;
             document.getElementById('cable-traffic').innerText = cable.trafficLoad;
             document.getElementById('cable-length').innerText = cable.length;
-            
+
             const statusEl = document.getElementById('cable-status');
             if (cable.status === 'fault') {
                 statusEl.innerHTML = '<span class="text-red-500 font-bold">Caído / Avería</span>';
@@ -361,14 +404,30 @@
                 alertBox.classList.add('hidden');
             }
 
+            // Anillos únicamente en los extremos del cable seleccionado
+            // Anillos pulsantes exclusivamente en las estaciones del cable seleccionado
             if (cable.coords && cable.coords.length >= 2) {
                 const startPt = cable.coords[0];
                 const endPt = cable.coords[cable.coords.length - 1];
                 const ringColor = cable.status === 'fault' ? '#ef4444' : '#06b6d4';
 
                 const selectedRings = [
-                    { lat: startPt[1], lng: startPt[0], color: ringColor, maxRadius: 3, speed: 3, period: 1200 },
-                    { lat: endPt[1], lng: endPt[0], color: ringColor, maxRadius: 3, speed: 3, period: 1200 }
+                    {
+                        lat: startPt[1],
+                        lng: startPt[0],
+                        color: ringColor,
+                        maxRadius: cable.status === 'fault' ? 3 : 2,
+                        speed: 3,
+                        period: 1200
+                    },
+                    {
+                        lat: endPt[1],
+                        lng: endPt[0],
+                        color: ringColor,
+                        maxRadius: cable.status === 'fault' ? 3 : 2,
+                        speed: 3,
+                        period: 1200
+                    }
                 ];
                 world.ringsData(selectedRings);
             }
@@ -398,6 +457,7 @@
                 if (filtered.length === 0) filtered = globalCablesData;
             }
             world.pathsData(filtered);
+            generateSpheresAndTrafficArcs(filtered);
             generatePhotonsForCables(filtered);
         }
 
@@ -406,6 +466,7 @@
             world.ringsData([]);
             const faults = globalCablesData.filter(c => c.status === 'fault');
             world.pathsData(faults);
+            generateSpheresAndTrafficArcs(faults);
             generatePhotonsForCables(faults);
         }
 
@@ -431,10 +492,11 @@
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
+            generateSpheresAndTrafficArcs(filtered);
             generatePhotonsForCables(filtered);
         });
 
-        window.addEventListener('DOMContentLoaded', initGlobe);
+        window.onload = initGlobe;
     </script>
 </body>
 </html>
