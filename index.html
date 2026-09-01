@@ -143,7 +143,8 @@
         async function fetchGlobalCables() {
             try {
                 const targetUrl = 'https://www.submarinecablemap.com/api/v3/cable/cable-geo.json';
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+                // Cambiamos el proxy CORS por uno más estable
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
                 
                 const response = await fetch(proxyUrl);
                 const geojson = await response.json();
