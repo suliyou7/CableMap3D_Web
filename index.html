@@ -9,9 +9,15 @@
 <!-- Carga única y limpia del bundle oficial de Globe.gl -->
 <script src="https://unpkg.com/globe.gl"></script>
 <style>
-body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-#globe-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
-.glass-panel {
+#globe-container { 
+    width: 100vw; 
+    height: 100vh; 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    z-index: 1; 
+    touch-action: none; /* Añade esta línea */
+}
 background: rgba(15, 23, 42, 0.85);
 backdrop-filter: blur(12px);
 border: 1px solid rgba(51, 65, 85, 0.5);
@@ -159,15 +165,14 @@ world = Globe()(container)
                `)
 .onPathClick(d => selectCable(d));
 
-world.controls().autoRotate = true; 
+world.controls().autoRotate = true;
 world.controls().autoRotateSpeed = 0.3;
 world.controls().enableZoom = true;
-
-// Detecta el inicio de la interacción y detiene la rotación
-world.controls().addEventListener('start', () => {
-world.controls().autoRotate = false;
+// Añade estas configuraciones para mejorar el control táctil:
+world.controls().enablePan = true;      // Permite desplazar la esfera de su centro con 2 dedos
+world.controls().panSpeed = 1.2;        // Ajusta la sensibilidad del movimiento de los 2 dedos
+world.controls().zoomSpeed = 0.8;       // Suaviza un poco el zoom del pellizco
 });
-
 fetchGlobalCables();
 }
 
