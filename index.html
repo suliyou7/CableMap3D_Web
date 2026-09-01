@@ -7,17 +7,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Globe.gl bundle -->
-    <script src="https://unpkg.com/globe.gl"></script>
-    <style>
-        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-        #globe-container { 
-            width: 100vw; 
-            height: 100vh; 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            z-index: 1; 
-            touch-action: none;<!DOCTYPE html>
+    <script src="https://unpkg.co<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -25,7 +15,8 @@
     <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl bundle -->
+    <!-- Globe.gl & Three.js bundles -->
+    <script src="https://unpkg.com/three"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
@@ -126,20 +117,35 @@
     <script>
         let world;
         let globalCablesData = []; 
+        let sphereParticles = [];
 
         function initGlobe() {
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+                
+                // Línea del cable sólida y continua (sin trazos discontinuos)
                 .pathPoints(d => d.coords) 
-                .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
-                .pathStroke(1.5)
-                .pathDashLength(0.15)
-                .pathDashGap(0.05)
-                .pathDashAnimateTime(d => d.status === 'fault' ? 12000 : 3000)
+                .pathColor(d => d.status === 'fault' ? 'rgba(239, 68, 68, 0.45)' : 'rgba(6, 182, 212, 0.45)')
+                .pathStroke(1.2)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
+                
+                // Capa de objetos 3D personalizados para renderizar esferas
+                .customLayerData(sphereParticles)
+                .customThreeObject(d => {
+                    const geometry = new THREE.SphereGeometry(d.radius, 12, 12);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: d.color,
+                        transparent: true,
+                        opacity: 0.95
+                    });
+                    return new THREE.Mesh(geometry, material);
+                })
+                .customThreeObjectUpdate((obj, d) => {
+                    Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+                })
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
@@ -162,6 +168,7 @@
             });
 
             loadCableDataAndIncidents();
+            animateSpheres();
         }
 
         async function loadCableDataAndIncidents() {
@@ -201,6 +208,9 @@
                 globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
 
+                // Generar esferas animadas para cada cable
+                generateSpheresForCables(globalCablesData);
+
                 document.getElementById('api-status').innerText = 'Datos Listos';
                 document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
                 
@@ -209,6 +219,55 @@
                 document.getElementById('api-status').innerText = 'Error de carga';
                 document.getElementById('api-status').className = 'text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full';
             }
+        }
+
+        function generateSpheresForCables(cables) {
+            sphereParticles = [];
+            cables.forEach((cable) => {
+                if (!cable.coords || cable.coords.length < 2) return;
+                
+                // Asignar entre 1 y 2 esferas por cable para mantener fluidez visual sin saturar la GPU
+                const numSpheres = cable.status === 'fault' ? 1 : 2;
+                for (let s = 0; s < numSpheres; s++) {
+                    sphereParticles.push({
+                        coords: cable.coords,
+                        progress: Math.random(), // Posición inicial aleatoria
+                        speed: (0.0015 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.4 : 1),
+                        radius: cable.status === 'fault' ? 0.7 : 0.5,
+                        color: cable.status === 'fault' ? '#f87171' : '#38bdf8',
+                        lat: cable.coords[0][1],
+                        lng: cable.coords[0][0],
+                        alt: 0.004
+                    });
+                }
+            });
+            world.customLayerData(sphereParticles);
+        }
+
+        // Bucle de animación para desplazar las esferas suavemente sobre la trayectoria de los cables
+        function animateSpheres() {
+            sphereParticles.forEach(p => {
+                p.progress += p.speed;
+                if (p.progress >= 1) p.progress = 0;
+
+                const totalSegments = p.coords.length - 1;
+                const currentPoint = p.progress * totalSegments;
+                const index = Math.floor(currentPoint);
+                const t = currentPoint - index;
+
+                const nextIndex = Math.min(index + 1, totalSegments);
+
+                const lng1 = p.coords[index][0];
+                const lat1 = p.coords[index][1];
+                const lng2 = p.coords[nextIndex][0];
+                const lat2 = p.coords[nextIndex][1];
+
+                p.lng = lng1 + (lng2 - lng1) * t;
+                p.lat = lat1 + (lat2 - lat1) * t;
+            });
+
+            world.customLayerData(sphereParticles);
+            requestAnimationFrame(animateSpheres);
         }
 
         function selectCable(cable) {
@@ -245,21 +304,23 @@
 
         function filterCables(category, event) {
             updateFilterButtons(event.target);
-            if (category === 'all') {
-                world.pathsData(globalCablesData);
-            } else {
-                const filtered = globalCablesData.filter(c => 
+            let filtered = globalCablesData;
+            if (category !== 'all') {
+                filtered = globalCablesData.filter(c => 
                     c.name.toLowerCase().includes(category.toLowerCase()) || 
                     (c.id && c.id.toLowerCase().includes(category.toLowerCase()))
                 );
-                world.pathsData(filtered.length > 0 ? filtered : globalCablesData);
+                if (filtered.length === 0) filtered = globalCablesData;
             }
+            world.pathsData(filtered);
+            generateSpheresForCables(filtered);
         }
 
         function filterIncidents(event) {
             updateFilterButtons(event.target);
             const faults = globalCablesData.filter(c => c.status === 'fault');
             world.pathsData(faults);
+            generateSpheresForCables(faults);
         }
 
         function updateFilterButtons(activeButton) {
@@ -283,6 +344,7 @@
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
+            generateSpheresForCables(filtered);
         });
 
         window.onload = initGlobe;
