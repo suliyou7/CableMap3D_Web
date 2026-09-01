@@ -45,13 +45,7 @@
                         <span class="h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></span>
                         <h1 class="text-xl font-bold tracking-wider text-cyan-400 uppercase">Submarine Cable 3D</h1>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <!-- Botón para alternar rotación manual/automática -->
-                        <button onclick="toggleAutoRotate()" id="rotate-toggle-btn" class="text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-2.5 py-1 rounded-md transition hover:bg-cyan-900 flex items-center space-x-1">
-                            <span>⏸️ Pausar Giro</span>
-                        </button>
-                        <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">API Conectada</span>
-                    </div>
+                    <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">API Conectada</span>
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Monitoreo de tráfico en tiempo real e incidencias globales.</p>
             </div>
@@ -113,7 +107,6 @@
     <script>
         let world;
         let globalCablesData = []; 
-        let isAutoRotating = true;
 
         function initGlobe() {
             const container = document.getElementById('globe-container');
@@ -137,8 +130,7 @@
                     </div>
                 `)
                 .onPathClick(d => {
-                    // Pausar automáticamente el giro al hacer clic en un cable para facilitar la lectura
-                    setAutoRotateState(false);
+                    world.controls().autoRotate = false;
                     selectCable(d);
                 });
 
@@ -149,49 +141,12 @@
             controls.enablePan = true;
             controls.panSpeed = 1.2;
 
-            // Pausar el giro automático en cuanto el usuario empiece a arrastrar o interactuar con el ratón/táctil
+            // Detener el giro automáticamente al interactuar por primera vez
             controls.addEventListener('start', () => {
-                if (isAutoRotating) {
-                    controls.autoRotate = false;
-                }
-            });
-
-            // Reanudar el giro al soltar (si el usuario no lo desactivó explícitamente desde el botón)
-            controls.addEventListener('end', () => {
-                if (isAutoRotating) {
-                    controls.autoRotate = true;
-                }
+                controls.autoRotate = false;
             });
 
             loadCableDataAndIncidents();
-        }
-
-        function toggleAutoRotate() {
-            isAutoRotating = !isAutoRotating;
-            const controls = world.controls();
-            controls.autoRotate = isAutoRotating;
-
-            const btn = document.getElementById('rotate-toggle-btn');
-            if (isAutoRotating) {
-                btn.innerHTML = '<span>⏸️ Pausar Giro</span>';
-                btn.className = 'text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-2.5 py-1 rounded-md transition hover:bg-cyan-900 flex items-center space-x-1';
-            } else {
-                btn.innerHTML = '<span>▶️ Reanudar Giro</span>';
-                btn.className = 'text-[10px] bg-gray-900 text-gray-300 border border-gray-700 px-2.5 py-1 rounded-md transition hover:bg-gray-800 flex items-center space-x-1';
-            }
-        }
-
-        function setAutoRotateState(state) {
-            isAutoRotating = state;
-            world.controls().autoRotate = state;
-            const btn = document.getElementById('rotate-toggle-btn');
-            if (state) {
-                btn.innerHTML = '<span>⏸️ Pausar Giro</span>';
-                btn.className = 'text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-2.5 py-1 rounded-md transition hover:bg-cyan-900 flex items-center space-x-1';
-            } else {
-                btn.innerHTML = '<span>▶️ Reanudar Giro</span>';
-                btn.className = 'text-[10px] bg-gray-900 text-gray-300 border border-gray-700 px-2.5 py-1 rounded-md transition hover:bg-gray-800 flex items-center space-x-1';
-            }
         }
 
         async function loadCableDataAndIncidents() {
