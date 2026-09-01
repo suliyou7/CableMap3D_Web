@@ -11,7 +11,7 @@
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-        #globe-container { <!DOCTYPE html>
+        #globe-container { <!DOCTYPE html><!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -127,9 +127,9 @@
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
-                // Textura nocturna Ultra-HD (8K) para eliminar pixelado al acercar zoom
-                .globeImageUrl('https://raw.githubusercontent.com/turban/webgl-earth/master/images/8k_earth_nightmap.jpg')
-                .bumpImageUrl('https://raw.githubusercontent.com/turban/webgl-earth/master/images/8k_earth_topography.png')
+                // Texturas HD oficiales de three-globe con soporte de topografía 3D (libres de CORS)
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
+                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
                 
                 // 1. Cables estáticos como líneas continuas
                 .pathPoints(d => d.coords) 
@@ -166,8 +166,8 @@
                     selectCable(d);
                 });
 
-            // Ajustar el renderizado al DPR real del dispositivo para máxima nitidez
-            world.renderer().setPixelRatio(window.devicePixelRatio);
+            // Forzar renderizado en alta definición escalado al Pixel Ratio del monitor
+            world.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
             const controls = world.controls();
             controls.autoRotate = true;
