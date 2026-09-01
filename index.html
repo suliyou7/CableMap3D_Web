@@ -117,11 +117,11 @@
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
                 
-                // Atmósfera luminosa dinámica
+                // Atmósfera luminosa
                 .atmosphereColor('#0ea5e9')
                 .atmosphereAltitude(0.18)
                 
-                // Configuración de los cables con animación de flujo integrada
+                // Configuración de los cables
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
                 .pathStroke(1.2)
@@ -131,14 +131,14 @@
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 
-                // Capa de anillos/pulsos radiantes dinámicos en los extremos
+                // Configuración de la capa de anillos/pulsos radiantes (vacía al inicio)
                 .ringsData([])
                 .ringColor(d => d.color)
                 .ringMaxRadius(d => d.maxRadius)
                 .ringPropagationSpeed(d => d.speed)
                 .ringRepeatPeriod(d => d.period)
 
-                // Capa de partículas 3D de apoyo
+                // Capa custom de partículas 3D
                 .customLayerData([])
                 .customThreeObject(d => {
                     const geometry = new THREE.SphereGeometry(d.radius, 12, 12);
@@ -219,7 +219,7 @@
                 globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
 
-                generateSpheresAndRingsForCables(globalCablesData);
+                generateSpheresForCables(globalCablesData);
 
                 document.getElementById('api-status').innerText = 'Datos Listos';
                 document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
@@ -231,36 +231,12 @@
             }
         }
 
-        function generateSpheresAndRingsForCables(cables) {
+        function generateSpheresForCables(cables) {
             sphereParticles = [];
-            let rings = [];
 
             cables.forEach((cable) => {
                 if (!cable.coords || cable.coords.length < 2) return;
                 
-                // Pulsos en las estaciones de amarre
-                const startPt = cable.coords[0];
-                const endPt = cable.coords[cable.coords.length - 1];
-
-                rings.push({
-                    lat: startPt[1],
-                    lng: startPt[0],
-                    color: cable.status === 'fault' ? '#ef4444' : '#06b6d4',
-                    maxRadius: cable.status === 'fault' ? 2.5 : 1.5,
-                    speed: 2,
-                    period: cable.status === 'fault' ? 800 : 1800
-                });
-
-                rings.push({
-                    lat: endPt[1],
-                    lng: endPt[0],
-                    color: cable.status === 'fault' ? '#ef4444' : '#06b6d4',
-                    maxRadius: cable.status === 'fault' ? 2.5 : 1.5,
-                    speed: 2,
-                    period: cable.status === 'fault' ? 800 : 1800
-                });
-
-                // Esferas en movimiento
                 const numSpheres = cable.status === 'fault' ? 1 : 2;
                 for (let s = 0; s < numSpheres; s++) {
                     sphereParticles.push({
@@ -276,7 +252,6 @@
                 }
             });
 
-            world.ringsData(rings);
             world.customLayerData(sphereParticles);
         }
 
@@ -327,6 +302,33 @@
                 alertBox.classList.add('hidden');
             }
 
+            // Generar anillos únicamente para los extremos del cable seleccionado
+            if (cable.coords && cable.coords.length >= 2) {
+                const startPt = cable.coords[0];
+                const endPt = cable.coords[cable.coords.length - 1];
+                const ringColor = cable.status === 'fault' ? '#ef4444' : '#06b6d4';
+
+                const selectedRings = [
+                    {
+                        lat: startPt[1],
+                        lng: startPt[0],
+                        color: ringColor,
+                        maxRadius: cable.status === 'fault' ? 3 : 2,
+                        speed: 3,
+                        period: 1200
+                    },
+                    {
+                        lat: endPt[1],
+                        lng: endPt[0],
+                        color: ringColor,
+                        maxRadius: cable.status === 'fault' ? 3 : 2,
+                        speed: 3,
+                        period: 1200
+                    }
+                ];
+                world.ringsData(selectedRings);
+            }
+
             panel.classList.remove('translate-y-96', 'opacity-0');
 
             if (cable.coords && cable.coords.length > 0) {
@@ -337,10 +339,13 @@
 
         function closeDetails() {
             document.getElementById('detail-panel').classList.add('translate-y-96', 'opacity-0');
+            // Eliminar las circunferencias al cerrar la vista detallada
+            world.ringsData([]);
         }
 
         function filterCables(category, event) {
             updateFilterButtons(event.target);
+            world.ringsData([]); // Limpiar anillos activos
             let filtered = globalCablesData;
             if (category !== 'all') {
                 filtered = globalCablesData.filter(c => 
@@ -350,14 +355,15 @@
                 if (filtered.length === 0) filtered = globalCablesData;
             }
             world.pathsData(filtered);
-            generateSpheresAndRingsForCables(filtered);
+            generateSpheresForCables(filtered);
         }
 
         function filterIncidents(event) {
             updateFilterButtons(event.target);
+            world.ringsData([]); // Limpiar anillos activos
             const faults = globalCablesData.filter(c => c.status === 'fault');
             world.pathsData(faults);
-            generateSpheresAndRingsForCables(faults);
+            generateSpheresForCables(faults);
         }
 
         function updateFilterButtons(activeButton) {
@@ -374,6 +380,7 @@
         }
 
         document.getElementById('search-input').addEventListener('input', (e) => {
+            world.ringsData([]); // Limpiar anillos activos
             const query = e.target.value.toLowerCase();
             const filtered = globalCablesData.filter(c => 
                 c.name.toLowerCase().includes(query) || 
@@ -381,7 +388,7 @@
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
-            generateSpheresAndRingsForCables(filtered);
+            generateSpheresForCables(filtered);
         });
 
         window.onload = initGlobe;
