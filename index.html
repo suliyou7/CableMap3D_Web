@@ -16,9 +16,7 @@
             height: 100vh; 
             position: absolute; 
             top: 0; 
-            left: 0; 
-            z-index: 1; 
-            touch-action: none;<!DOCTYPE html>
+            left: 0; <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -27,7 +25,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Globe.gl & Three.js CDN -->
-    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
@@ -128,7 +126,28 @@
     <script>
         let world;
         let globalCablesData = []; 
-        let sphereParticles = [];
+        let trafficPhotons = [];
+
+        // Generar una textura programática ultrasensible para los pulsos de fotones
+        function createPhotonTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+
+            const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(56, 189, 248, 0.9)');
+            gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.4)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 128, 128);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const photonTexture = createPhotonTexture();
 
         function initGlobe() {
             const container = document.getElementById('globe-container');
@@ -141,44 +160,33 @@
                 .atmosphereColor('#0ea5e9')
                 .atmosphereAltitude(0.18)
                 
-                // 1. Líneas de cable continuas y sólidas
+                // Cables base: Trazado sólido, estilizado y nítido
                 .pathPoints(d => d.coords) 
                 .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
                 .pathStroke(1.2)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
-                
-                // 2. Simulación de tráfico mediante ráfagas/cometas de datos dinámicos (arcs)
-                .arcsData([])
-                .arcStartLat(d => d.startLat)
-                .arcStartLng(d => d.startLng)
-                .arcEndLat(d => d.endLat)
-                .arcEndLng(d => d.endLng)
-                .arcColor(d => d.color)
-                .arcAltitude(0.001) // Pegados al trazado marino
-                .arcStroke(0.6)
-                .arcDashLength(0.2)
-                .arcDashGap(1)
-                .arcDashInitialGap(() => Math.random())
-                .arcDashAnimateTime(d => d.animateTime)
 
-                // 3. Anillos/pulsos radiantes (solo visibles al seleccionar cable)
+                // Circunferencias dinámicas al hacer clic
                 .ringsData([])
                 .ringColor(d => d.color)
                 .ringMaxRadius(d => d.maxRadius)
                 .ringPropagationSpeed(d => d.speed)
                 .ringRepeatPeriod(d => d.period)
 
-                // 4. Capa de partículas físicas 3D navegando
+                // Capa de Fotones/Micro-paquetes de luz de alta definición
                 .customLayerData([])
                 .customThreeObject(d => {
-                    const geometry = new THREE.SphereGeometry(d.radius, 12, 12);
-                    const material = new THREE.MeshBasicMaterial({ 
+                    const material = new THREE.SpriteMaterial({ 
+                        map: photonTexture, 
                         color: d.color,
                         transparent: true,
-                        opacity: 0.95
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
                     });
-                    return new THREE.Mesh(geometry, material);
+                    const sprite = new THREE.Sprite(material);
+                    sprite.scale.set(d.size, d.size, 1.0);
+                    return sprite;
                 })
                 .customThreeObjectUpdate((obj, d) => {
                     const coord = world.getCoords(d.lat, d.lng, d.alt);
@@ -210,7 +218,7 @@
             });
 
             loadCableDataAndIncidents();
-            animateSpheres();
+            animateTrafficPhotons();
         }
 
         async function loadCableDataAndIncidents() {
@@ -250,8 +258,7 @@
                 globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
 
-                // Generar dinámicamente partículas 3D y ráfagas de tráfico
-                generateSpheresAndTrafficArcs(globalCablesData);
+                generatePhotonsForCables(globalCablesData);
 
                 document.getElementById('api-status').innerText = 'Datos Listos';
                 document.getElementById('api-status').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
@@ -263,49 +270,34 @@
             }
         }
 
-        function generateSpheresAndTrafficArcs(cables) {
-            sphereParticles = [];
-            let trafficArcs = [];
+        function generatePhotonsForCables(cables) {
+            trafficPhotons = [];
 
             cables.forEach((cable) => {
                 if (!cable.coords || cable.coords.length < 2) return;
                 
-                // Ráfagas de tráfico de datos (Cometas sobre la línea continua)
-                const startPt = cable.coords[0];
-                const endPt = cable.coords[cable.coords.length - 1];
-
-                trafficArcs.push({
-                    startLat: startPt[1],
-                    startLng: startPt[0],
-                    endLat: endPt[1],
-                    endLng: endPt[0],
-                    color: cable.status === 'fault' ? ['#ef4444', '#f87171'] : ['#38bdf8', '#ffffff'],
-                    animateTime: cable.status === 'fault' ? 6000 : (1500 + Math.random() * 2000)
-                });
-
-                // Partículas dinámicas 3D
-                const numSpheres = cable.status === 'fault' ? 1 : 2;
-                for (let s = 0; s < numSpheres; s++) {
-                    sphereParticles.push({
+                // Múltiples impulsos luminosos por trazado
+                const count = cable.status === 'fault' ? 1 : 4;
+                for (let i = 0; i < count; i++) {
+                    trafficPhotons.push({
                         coords: cable.coords,
-                        progress: Math.random(),
-                        speed: (0.0015 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.3 : 1),
-                        radius: cable.status === 'fault' ? 0.7 : 0.45,
-                        color: cable.status === 'fault' ? '#f87171' : '#38bdf8',
+                        progress: (i / count) + (Math.random() * 0.1),
+                        speed: (0.002 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.2 : 1.2),
+                        size: cable.status === 'fault' ? 1.4 : 0.9,
+                        color: cable.status === 'fault' ? '#ef4444' : (Math.random() > 0.5 ? '#38bdf8' : '#ffffff'),
                         lat: cable.coords[0][1],
                         lng: cable.coords[0][0],
-                        alt: 0.005
+                        alt: 0.003
                     });
                 }
             });
 
-            world.arcsData(trafficArcs);
-            world.customLayerData(sphereParticles);
+            world.customLayerData(trafficPhotons);
         }
 
-        function animateSpheres() {
-            if (sphereParticles.length > 0) {
-                sphereParticles.forEach(p => {
+        function animateTrafficPhotons() {
+            if (trafficPhotons.length > 0) {
+                trafficPhotons.forEach(p => {
                     p.progress += p.speed;
                     if (p.progress >= 1) p.progress = 0;
 
@@ -325,9 +317,9 @@
                     p.lat = lat1 + (lat2 - lat1) * t;
                 });
 
-                world.customLayerData(sphereParticles);
+                world.customLayerData(trafficPhotons);
             }
-            requestAnimationFrame(animateSpheres);
+            requestAnimationFrame(animateTrafficPhotons);
         }
 
         function selectCable(cable) {
@@ -350,7 +342,7 @@
                 alertBox.classList.add('hidden');
             }
 
-            // Anillos únicamente en los extremos del cable seleccionado
+            // Anillos pulsantes exclusivamente en las estaciones del cable seleccionado
             if (cable.coords && cable.coords.length >= 2) {
                 const startPt = cable.coords[0];
                 const endPt = cable.coords[cable.coords.length - 1];
@@ -402,7 +394,7 @@
                 if (filtered.length === 0) filtered = globalCablesData;
             }
             world.pathsData(filtered);
-            generateSpheresAndTrafficArcs(filtered);
+            generatePhotonsForCables(filtered);
         }
 
         function filterIncidents(event) {
@@ -410,7 +402,7 @@
             world.ringsData([]);
             const faults = globalCablesData.filter(c => c.status === 'fault');
             world.pathsData(faults);
-            generateSpheresAndTrafficArcs(faults);
+            generatePhotonsForCables(faults);
         }
 
         function updateFilterButtons(activeButton) {
@@ -435,7 +427,7 @@
                 (c.id && c.id.toLowerCase().includes(query))
             );
             world.pathsData(filtered);
-            generateSpheresAndTrafficArcs(filtered);
+            generatePhotonsForCables(filtered);
         });
 
         window.onload = initGlobe;
