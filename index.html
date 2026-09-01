@@ -10,18 +10,6 @@
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
         body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-        #glob<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl bundle -->
-    <script src="https://unpkg.com/globe.gl"></script>
-    <style>
-        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
         #globe-container { 
             width: 100vw; 
             height: 100vh; 
@@ -126,11 +114,15 @@
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .pathPoints(d => d.coords) 
-                .pathColor(d => d.status === 'fault' ? '#ef4444' : d.color || '#06b6d4')
-                .pathDashLength(0.2)
-                .pathDashGap(0.08)
-                .pathDashAnimateTime(4000)
-                .pathStroke(1.4)
+                .pathColor(d => d.status === 'fault' ? 'rgba(239, 68, 68, 0.6)' : 'rgba(6, 182, 212, 0.55)')
+                .pathStroke(1.2)
+                // Animación por esferas de pulso continuo desplazándose por los cables
+                .pathPointAlt(0.005)
+                .pathPointRadius(0.08)
+                .pathMotionPoints(d => d.status === 'fault' ? 1 : 3)
+                .pathMotionPointRadius(d => d.status === 'fault' ? 0.25 : 0.18)
+                .pathMotionPointColor(d => d.status === 'fault' ? '#f87171' : '#38bdf8')
+                .pathMotionPointDuration(d => d.status === 'fault' ? 8000 : 3500)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 .pathLabel(d => `
@@ -154,19 +146,16 @@
                 controls.autoRotate = false;
             });
 
-            // Disparar la carga de datos inmediatamente en paralelo
             loadCableDataAndIncidents();
         }
 
         async function loadCableDataAndIncidents() {
             try {
-                // Usamos la ruta relativa explícita para evitar demoras en GitHub Pages
                 const geoResponse = await fetch('./cable-geo.json');
                 const geojson = await geoResponse.json();
 
                 let processedData = [];
 
-                // Generación acelerada de estructuras
                 const len = geojson.features.length;
                 for (let i = 0; i < len; i++) {
                     const feature = geojson.features[i];
