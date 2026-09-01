@@ -8,10 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Globe.gl & Three.js CDN -->
     <script src="https://unpkg.com/three"></script>
-    <script src="https://unpkg.com/globe.gl"></script>
-    <style>
-        body { margin: 0; background-color: #030712; color: #f3f4f6; font-family: ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
-        #globe-container { <!DOCTYPE html><!DOCTYPE html>
+    <script src="https://unpkg.com/gl<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -65,9 +62,9 @@
             </div>
 
             <!-- Buscador -->
-            <div class="relative">
+            <div class="relative z-20 pointer-events-auto">
                 <input type="text" id="search-input" placeholder="Buscar cable (ej. MAREA, Curie, 2Africa)..." 
-                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
+                    class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors pointer-events-auto">
             </div>
 
             <!-- Filtros rápidos -->
@@ -127,7 +124,6 @@
             const container = document.getElementById('globe-container');
             
             world = Globe()(container)
-                // Texturas HD oficiales de three-globe con soporte de topografía 3D (libres de CORS)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
                 .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
                 
@@ -166,7 +162,6 @@
                     selectCable(d);
                 });
 
-            // Forzar renderizado en alta definición escalado al Pixel Ratio del monitor
             world.renderer().setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
             const controls = world.controls();
@@ -220,7 +215,6 @@
                 globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
 
-                // Iniciar la generación de las esferas sobre los cables
                 generateSpheresForCables(globalCablesData);
 
                 document.getElementById('api-status').innerText = 'Datos Listos';
