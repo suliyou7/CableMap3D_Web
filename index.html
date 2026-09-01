@@ -6,16 +6,7 @@
     <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl bundle -->
-    <script src="https://unpkg.co<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Globe.gl & Three.js bundles -->
+    <!-- Globe.gl & Three.js CDN -->
     <script src="https://unpkg.com/three"></script>
     <script src="https://unpkg.com/globe.gl"></script>
     <style>
@@ -124,16 +115,15 @@
             
             world = Globe()(container)
                 .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-                
-                // Línea del cable sólida y continua (sin trazos discontinuos)
+                // 1. Cables estáticos como líneas continuas
                 .pathPoints(d => d.coords) 
-                .pathColor(d => d.status === 'fault' ? 'rgba(239, 68, 68, 0.45)' : 'rgba(6, 182, 212, 0.45)')
+                .pathColor(d => d.status === 'fault' ? '#ef4444' : (d.color || '#06b6d4'))
                 .pathStroke(1.2)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 
-                // Capa de objetos 3D personalizados para renderizar esferas
-                .customLayerData(sphereParticles)
+                // 2. Capa custom 3D con Three.js para renderizar esferas físicas
+                .customLayerData([])
                 .customThreeObject(d => {
                     const geometry = new THREE.SphereGeometry(d.radius, 12, 12);
                     const material = new THREE.MeshBasicMaterial({ 
@@ -144,7 +134,10 @@
                     return new THREE.Mesh(geometry, material);
                 })
                 .customThreeObjectUpdate((obj, d) => {
-                    Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+                    const coord = world.getCoords(d.lat, d.lng, d.alt);
+                    if (coord) {
+                        obj.position.set(coord.x, coord.y, coord.z);
+                    }
                 })
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
@@ -208,7 +201,7 @@
                 globalCablesData = processedData; 
                 world.pathsData(globalCablesData);
 
-                // Generar esferas animadas para cada cable
+                // Iniciar la generación de las esferas sobre los cables
                 generateSpheresForCables(globalCablesData);
 
                 document.getElementById('api-status').innerText = 'Datos Listos';
@@ -226,47 +219,47 @@
             cables.forEach((cable) => {
                 if (!cable.coords || cable.coords.length < 2) return;
                 
-                // Asignar entre 1 y 2 esferas por cable para mantener fluidez visual sin saturar la GPU
                 const numSpheres = cable.status === 'fault' ? 1 : 2;
                 for (let s = 0; s < numSpheres; s++) {
                     sphereParticles.push({
                         coords: cable.coords,
-                        progress: Math.random(), // Posición inicial aleatoria
-                        speed: (0.0015 + Math.random() * 0.002) * (cable.status === 'fault' ? 0.4 : 1),
-                        radius: cable.status === 'fault' ? 0.7 : 0.5,
+                        progress: Math.random(),
+                        speed: (0.001 + Math.random() * 0.0015) * (cable.status === 'fault' ? 0.3 : 1),
+                        radius: cable.status === 'fault' ? 0.6 : 0.4,
                         color: cable.status === 'fault' ? '#f87171' : '#38bdf8',
                         lat: cable.coords[0][1],
                         lng: cable.coords[0][0],
-                        alt: 0.004
+                        alt: 0.005
                     });
                 }
             });
             world.customLayerData(sphereParticles);
         }
 
-        // Bucle de animación para desplazar las esferas suavemente sobre la trayectoria de los cables
         function animateSpheres() {
-            sphereParticles.forEach(p => {
-                p.progress += p.speed;
-                if (p.progress >= 1) p.progress = 0;
+            if (sphereParticles.length > 0) {
+                sphereParticles.forEach(p => {
+                    p.progress += p.speed;
+                    if (p.progress >= 1) p.progress = 0;
 
-                const totalSegments = p.coords.length - 1;
-                const currentPoint = p.progress * totalSegments;
-                const index = Math.floor(currentPoint);
-                const t = currentPoint - index;
+                    const totalSegments = p.coords.length - 1;
+                    const currentPoint = p.progress * totalSegments;
+                    const index = Math.floor(currentPoint);
+                    const t = currentPoint - index;
 
-                const nextIndex = Math.min(index + 1, totalSegments);
+                    const nextIndex = Math.min(index + 1, totalSegments);
 
-                const lng1 = p.coords[index][0];
-                const lat1 = p.coords[index][1];
-                const lng2 = p.coords[nextIndex][0];
-                const lat2 = p.coords[nextIndex][1];
+                    const lng1 = p.coords[index][0];
+                    const lat1 = p.coords[index][1];
+                    const lng2 = p.coords[nextIndex][0];
+                    const lat2 = p.coords[nextIndex][1];
 
-                p.lng = lng1 + (lng2 - lng1) * t;
-                p.lat = lat1 + (lat2 - lat1) * t;
-            });
+                    p.lng = lng1 + (lng2 - lng1) * t;
+                    p.lat = lat1 + (lat2 - lat1) * t;
+                });
 
-            world.customLayerData(sphereParticles);
+                world.customLayerData(sphereParticles);
+            }
             requestAnimationFrame(animateSpheres);
         }
 
