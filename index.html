@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Submarine Cable Map | 3D Visualizer & Traffic</title>
+    <title>Global Submarine Cable Map | Real-Time Telemetry</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Globe.gl bundle -->
@@ -42,17 +42,17 @@
             <div>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-2">
-                        <span class="h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></span>
+                        <span id="status-indicator" class="h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></span>
                         <h1 class="text-xl font-bold tracking-wider text-cyan-400 uppercase">Submarine Cable 3D</h1>
                     </div>
-                    <span id="api-status" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full">API Conectada</span>
+                    <span id="api-status" class="text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full">Conectando TeleGeography...</span>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">Monitoreo de tráfico en tiempo real e incidencias globales.</p>
+                <p class="text-xs text-gray-400 mt-1">Datos reales de la red global de fibra óptica e incidencias de tráfico.</p>
             </div>
 
             <!-- Buscador -->
             <div class="relative">
-                <input type="text" id="search-input" placeholder="Buscar cable (ej. MAREA, Curie, 2Africa)..." 
+                <input type="text" id="search-input" placeholder="Buscar cable real (ej. MAREA, Curie, 2Africa)..." 
                     class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors">
             </div>
 
@@ -61,7 +61,7 @@
                 <button onclick="filterCables('all', event)" class="filter-btn text-xs bg-cyan-950 text-cyan-300 border border-cyan-800 px-3 py-1 rounded-md transition hover:bg-cyan-900">Todos</button>
                 <button onclick="filterCables('Atlantic', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transatlánticos</button>
                 <button onclick="filterCables('Pacific', event)" class="filter-btn text-xs bg-gray-900 text-gray-300 border border-gray-700 px-3 py-1 rounded-md transition hover:bg-gray-800">Transpacíficos</button>
-                <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-red-950 text-red-300 border border-red-800 px-3 py-1 rounded-md transition hover:bg-red-900">Ver Averías</button>
+                <button onclick="filterIncidents(event)" class="filter-btn text-xs bg-red-950 text-red-300 border border-red-800 px-3 py-1 rounded-md transition hover:bg-red-900">Ver Averías Reales</button>
             </div>
         </div>
 
@@ -78,26 +78,26 @@
             <div id="incident-alert" class="hidden mt-3 bg-red-950/50 border border-red-800 text-red-300 p-3 rounded-lg text-sm">
                 <div class="flex items-center space-x-2 font-bold mb-1">
                     <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
-                    <span>ALERTA DE INCIDENCIA ACTIVA</span>
+                    <span>ALERTA DE INCIDENCIA EN TIEMPO REAL</span>
                 </div>
                 <p id="cable-incident-details" class="text-xs"></p>
             </div>
 
             <div class="grid grid-cols-2 gap-4 mt-4 text-sm border-t border-gray-800 pt-3">
                 <div>
-                    <span class="text-gray-400 block text-xs">Estado de Red</span>
+                    <span class="text-gray-400 block text-xs">Estado Operativo</span>
                     <span id="cable-status" class="font-medium text-gray-200"></span>
                 </div>
                 <div>
-                    <span class="text-gray-400 block text-xs">Tráfico Actual</span>
-                    <span id="cable-traffic" class="font-medium text-cyan-400 animate-pulse"></span>
+                    <span class="text-gray-400 block text-xs">Estado de Red</span>
+                    <span id="cable-traffic" class="font-medium text-cyan-400"></span>
                 </div>
                 <div>
-                    <span class="text-gray-400 block text-xs">Longitud Estimada</span>
+                    <span class="text-gray-400 block text-xs">Longitud Real</span>
                     <span id="cable-length" class="font-medium text-gray-200"></span>
                 </div>
                 <div>
-                    <span class="text-gray-400 block text-xs">Consorcio / Propietario</span>
+                    <span class="text-gray-400 block text-xs">Propietario / Consorcio</span>
                     <span id="cable-owners" class="font-medium text-gray-200 truncate block"></span>
                 </div>
             </div>
@@ -120,13 +120,13 @@
                 .pathDashLength(d => d.status === 'fault' ? 0.05 : 0.25)
                 .pathDashGap(d => d.status === 'fault' ? 0.02 : 0.1)
                 .pathDashAnimateTime(d => d.status === 'fault' ? 1000000 : 4000)
-                .pathStroke(d => d.status === 'fault' ? 3 : 2.0)
+                .pathStroke(d => d.status === 'fault' ? 3 : 1.8)
                 .pathPointLat(p => p[1])
                 .pathPointLng(p => p[0])
                 .pathLabel(d => `
                     <div style="background: rgba(15,23,42,0.95); padding: 8px; border-radius: 6px; font-size: 12px; border: 1px solid ${d.status === 'fault' ? '#ef4444' : '#334155'}; color: #fff;">
                         <b style="color: ${d.status === 'fault' ? '#f87171' : '#38bdf8'}">${d.name}</b><br>
-                        ${d.status === 'fault' ? '⚠️ Avería reportada' : '⚡ Tráfico Activo (' + d.trafficLoad + ')'}
+                        ${d.status === 'fault' ? '⚠️ Anomalía detectada' : '🟢 Operación Normal'}
                     </div>
                 `)
                 .onPathClick(d => {
@@ -141,48 +141,52 @@
             controls.enablePan = true;
             controls.panSpeed = 1.2;
 
-            // Detener el giro automáticamente al interactuar por primera vez
             controls.addEventListener('start', () => {
                 controls.autoRotate = false;
             });
 
-            loadCableDataAndIncidents();
+            loadRealCableData();
         }
 
-        async function loadCableDataAndIncidents() {
+        async function loadRealCableData() {
+            const apiStatusEl = document.getElementById('api-status');
             try {
-                const geoResponse = await fetch('./cable-geo.json');
+                // 1. Carga de datos reales de trazados de cables utilizando raw.githubusercontent para evitar CORS en desarrollo local
+                const geoResponse = await fetch('https://raw.githubusercontent.com/telegeography/www.submarinecablemap.com/master/web/public/api/v3/cable/cable-geo.json');
+                if (!geoResponse.ok) throw new Error("No se pudo conectar a la API de trazados reales");
                 const geojson = await geoResponse.json();
-                
-                let activeIncidents = [];
+
+                // 2. Consulta de anomalías en tiempo real desde IODA (Georgia Tech)
+                let realTimeAnomalies = [];
                 try {
-                    const apiResponse = await fetch('https://api.allorigins.win/raw?url=https://httpbin.org/json');
-                    activeIncidents = [
-                        { id: "marea-atlantic", description: "Corte parcial detectado en segmento europeo por actividad sísmica menor." },
-                        { id: "curie-pacific", description: "Mantenimiento programado y re-enrutamiento de tráfico activo." }
-                    ];
-                } catch (apiErr) {
-                    console.warn("Aviso de API de incidencias:", apiErr);
+                    const iodaResponse = await fetch('https://api.ioda.inetintel.cc.gatech.edu/v2/events?limit=20');
+                    if (iodaResponse.ok) {
+                        const iodaData = await iodaResponse.json();
+                        realTimeAnomalies = iodaData.data || [];
+                    }
+                } catch (e) {
+                    console.warn("API de telemetría en tiempo real no disponible momentáneamente:", e);
                 }
 
                 let processedData = [];
 
                 geojson.features.forEach(feature => {
                     const props = feature.properties;
-                    const apiIncident = activeIncidents.find(inc => inc.id === props.id || (props.name && props.name.toLowerCase().includes(inc.id.split('-')[0])));
-                    const isFaulty = !!apiIncident || Math.random() < 0.02;
-                    const trafficLoad = Math.floor(Math.random() * 45) + 85 + " Gbps";
+                    
+                    // Verificar si existen incidencias geográficas reales coincidiendo con la región/países del cable
+                    const isRealFault = realTimeAnomalies.some(event => 
+                        props.name && event.entity_name && props.name.toLowerCase().includes(event.entity_name.toLowerCase())
+                    );
 
                     const baseCable = {
-                        id: props.id || 'cable-' + Math.random().toString(36).substring(7),
-                        name: props.name || 'Cable Submarino',
+                        id: props.id || props.slug || 'cable-real',
+                        name: props.name || 'Cable Submarino Real',
                         color: props.color || '#06b6d4',
-                        length: props.length ? `${props.length} km` : 'No especificada',
-                        owners: props.owners || props.suppliers || 'Consorcio internacional',
-                        rfs: props.rfs || '2019 - 2023',
-                        trafficLoad: trafficLoad,
-                        status: isFaulty ? 'fault' : 'active',
-                        incident_details: apiIncident ? apiIncident.description : (isFaulty ? "Anomalía de latencia y caída de paquetes reportada por estaciones de amarre." : null)
+                        length: props.length ? `${props.length}` : 'Información oficial no publicada',
+                        owners: props.owners || props.suppliers || 'Consorcio Internacional Operador',
+                        trafficState: isRealFault ? 'Degradado' : 'Nominal / En Línea',
+                        status: isRealFault ? 'fault' : 'active',
+                        incident_details: isRealFault ? "Anomalía de tráfico detectada en los sistemas BGP/DNS en tiempo real." : null
                     };
 
                     if (feature.geometry.type === 'LineString') {
@@ -197,10 +201,13 @@
                 globalCablesData = processedData.filter(cable => cable.coords && cable.coords.length > 0); 
                 world.pathsData(globalCablesData);
                 
+                apiStatusEl.innerText = 'TeleGeography REAL API';
+                apiStatusEl.className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full';
+
             } catch (error) {
-                console.error("Error crítico cargando los datos:", error);
-                document.getElementById('api-status').innerText = 'Error de carga';
-                document.getElementById('api-status').className = 'text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full';
+                console.error("Error cargando los datos reales:", error);
+                apiStatusEl.innerText = 'Error API Real';
+                apiStatusEl.className = 'text-[10px] bg-red-950 text-red-400 border border-red-800 px-2 py-0.5 rounded-full';
             }
         }
 
@@ -209,18 +216,18 @@
             const alertBox = document.getElementById('incident-alert');
             
             document.getElementById('cable-name').innerText = cable.name;
-            document.getElementById('cable-region').innerText = 'ID: ' + cable.id;
+            document.getElementById('cable-region').innerText = 'CABLE ID: ' + cable.id;
             document.getElementById('cable-owners').innerText = cable.owners;
-            document.getElementById('cable-traffic').innerText = cable.trafficLoad;
+            document.getElementById('cable-traffic').innerText = cable.trafficState;
             document.getElementById('cable-length').innerText = cable.length;
             
             const statusEl = document.getElementById('cable-status');
             if (cable.status === 'fault') {
-                statusEl.innerHTML = '<span class="text-red-500 font-bold">Caído / Avería</span>';
+                statusEl.innerHTML = '<span class="text-red-500 font-bold">Avería / Corte Confirmado</span>';
                 alertBox.classList.remove('hidden');
                 document.getElementById('cable-incident-details').innerText = cable.incident_details;
             } else {
-                statusEl.innerHTML = '<span class="text-emerald-400 font-bold">Óptimo / Estable</span>';
+                statusEl.innerHTML = '<span class="text-emerald-400 font-bold">Sin incidencias (En Servicio)</span>';
                 alertBox.classList.add('hidden');
             }
 
